@@ -2,15 +2,9 @@
 
 #include "wled.h"
 
-#define FX_MODE_ICON256_WORD_CLOCK 255
+#define FX_MODE_ICON256_WORD_CLOCK 218
 
 byte frame[32];
-
-// static effect, used if an effect fails to initialize
-static uint16_t mode_static(void) {
-  SEGMENT.fill(SEGCOLOR(0));
-  return strip.isOffRefreshRequired() ? FRAMETIME : 350;
-}
 
 // Helper to set a pixel in the frame buffer
 void setFrame(byte row, byte col, bool on)
@@ -56,7 +50,9 @@ bool getFrame(byte row, byte col)
 // Clear the frame buffer
 void clearFrame()
 {
-    memset(frame, 0, sizeof(frame));
+    for (int i = 0; i < 32; i++) {
+        frame[i] = 0;
+    }
 }
 
 // Display seconds on the bottom row
@@ -73,38 +69,39 @@ void showSeconds(byte s)
 /*
  * Word Clock effect
  */
-static uint16_t mode_icon256_word_clock()
+uint16_t mode_icon256_word_clock()
 {
-    if (!strip.isMatrix) return mode_static(); // Not for strips
+    if (!strip.isMatrix) return 0; // Not for strips
 
-    // Use WLED's time variables
+    clearFrame();
+
+    addWordToFrame(w_en_the);
+    addWordToFrame(w_en_time_);
+    addWordToFrame(w_en_is);
+
     byte h = hour(localTime);
     byte m = minute(localTime);
     byte s = second(localTime);
 
-    clearFrame();
-
-    // Display time words
     showTimeWords(h, m, s);
-
-    // Display seconds on the bottom row
     showSeconds(s);
 
+    uint8_t palette_index = 0;
     // Render frame to the strip
     for (int y = 0; y < 16; y++)
     {
         for (int x = 0; x < 16; x++)
-        {
+        {   
             CRGB color = CRGB::Black;
-            if (getFrame(y, x))
-            {
+            if (getFrame(y, x)) {
                 // Use primary color for the text
-                color = strip.getSegment(0).color_from_palette(0, false, true, 0);
-            }
-            strip.setPixelColor(y * 16 + x, color);
+                color = SEGMENT.color_from_palette(palette_index, false, true, 0);
+            } 
+            SEGMENT.setPixelColor(y * 16 + x, color);
+            palette_index++;
         }
     }
-
+    
     return FRAMETIME;
 }
 
@@ -119,7 +116,7 @@ public:
     void setup() override
     {
         // Add the effect to the list
-        strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, &mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
+        strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
     }
 
     void loop() override
@@ -129,7 +126,7 @@ public:
 
     uint16_t getId() override
     {
-        return USERMOD_ID_USER_FX; // Using a reserved ID for now
+        return USERMOD_ID_WORDCLOCK;
     }
 };
 
