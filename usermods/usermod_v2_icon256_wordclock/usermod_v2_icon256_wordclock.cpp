@@ -115,6 +115,21 @@ private:
 public:
     void setup() override
     {
+        strip.isMatrix = true;
+        strip.panel.clear();
+        WS2812FX::Panel p;
+        p.bottomStart = true;
+        p.rightStart = false;
+        p.vertical = false;
+        p.serpentine = false;
+        p.xOffset = 0;
+        p.yOffset = 0;
+        p.width = 16;
+        p.height = 16;
+        strip.panel.push_back(p);
+        strip.deserializeMap();
+        strip.makeAutoSegments(true);
+
         // Add the effect to the list
         strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
     }
