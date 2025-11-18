@@ -1,38 +1,242 @@
-name: WLED Release CI
+name: Release Build
 
 on:
   push:
     tags:
-      - '*'
+      - 'v*'  # Triggers on version tags like v0.16.0 or v0.16.0-beta
 
 jobs:
-  
-  wled_build:
-    uses: ./.github/workflows/build.yml
-    
-  release:
-    name: Create Release
+  determine-release-type:
     runs-on: ubuntu-latest
-    needs: wled_build
+    outputs:
+      is_beta: ${{ steps.check.outputs.is_beta }}
+      version: ${{ steps.check.outputs.version }}
     steps:
-    - uses: actions/download-artifact@v4
-      with:
-        merge-multiple: true
-    - name: "✏️ Generate release changelog"
-      id: changelog
-      uses: janheinrichmerker/action-github-changelog-generator@v2.3
-      with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
-          sinceTag: v0.15.0
-          maxIssues: 500
-          # Exclude issues that were closed without resolution from changelog
-          exclude-labels: 'stale,wontfix,duplicate,invalid'       
-    - name: Create draft release
-      uses: softprops/action-gh-release@v1
-      with:
-        body: ${{ steps.changelog.outputs.changelog }}
-        draft: True
-        files: |
-          *.bin
-          *.bin.gz
+      - name: Check release type
+        id: check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG" == *"-beta"* ]] || [[ "$TAG" == *"-rc"* ]]; then
+            echo "is_beta=true" >> $GITHUB_OUTPUT
+            echo "This is a staging/beta release"
+          else
+            echo "is_beta=false" >> $GITHUB_OUTPUT
+            echo "This is a production release"
+          fi
+          # Remove 'v' prefix for version
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+  build-firmware:
+    needs: determine-release-type
+    runs-on: ubuntu-latest
+    timeout-minutes: 45  # Allow enough time for full build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.buildcache
+          key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Install PlatformIO
+        run: pip install -r requirements.txt
+
+      - name: Build Web UI
+        run: npm run build
+        timeout-minutes: 2
+
+      - name: Run Tests
+        run: npm test
+        timeout-minutes: 3
+
+      - name: Build Firmware
+        run: pio run -e icon256
+        timeout-minutes: 30
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp build_output/release/*.bin release-artifacts/ || true
+          ls -la release-artifacts/
+
+      - name: Generate version-beta.json for staging (on beta branch)
+        if: needs.determine-release-type.outputs.is_beta == 'true'
+        run: |
+          cat > release-artifacts/version-beta.json << EOF
+          {
+            "version": "${{ needs.determine-release-type.outputs.version }}",
+            "url": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/WLED_${{ needs.determine-release-type.outputs.version }}_ESP32_S3_Icon256.bin",
+            "release_notes": "https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+            "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "is_beta": true
+          }
+          EOF
+          cat release-artifacts/version-beta.json
+
+      - name: Generate version.json for production (on main branch)
+        if: needs.determine-release-type.outputs.is_beta == 'false'
+        run: |
+          cat > release-artifacts/version.json << EOF
+          {
+            "version": "${{ needs.determine-release-type.outputs.version }}",
+            "url": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/WLED_${{ needs.determine-release-type.outputs.version }}_ESP32_S3_Icon256.bin",
+            "release_notes": "https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+            "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "is_beta": false
+          }
+          EOF
+          cat release-artifacts/version.json
+
+      - name: Rename firmware with version
+        run: |
+          cd release-artifacts
+          for file in *.bin; do
+            if [ -f "$file" ]; then
+              newname=$(echo "$file" | sed "s/WLED_0\.16\.0-alpha/WLED_${{ needs.determine-release-type.outputs.version }}/g")
+              mv "$file" "$newname"
+              echo "Renamed $file to $newname"
+            fi
+          done
+          ls -la
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-release-${{ needs.determine-release-type.outputs.version }}
+          path: release-artifacts/*
+
+  create-release:
+    needs: [determine-release-type, build-firmware]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-release-${{ needs.determine-release-type.outputs.version }}
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-artifacts/*
+          draft: false
+          prerelease: ${{ needs.determine-release-type.outputs.is_beta == 'true' }}
+          body: |
+            ## WLED Icon256 Release ${{ needs.determine-release-type.outputs.version }}
+            
+            ${{ needs.determine-release-type.outputs.is_beta == 'true' && '⚠️ **BETA RELEASE** - For Friends & Family Testing Only' || '✅ **PRODUCTION RELEASE**' }}
+            
+            ### Installation
+            
+            1. Download `WLED_${{ needs.determine-release-type.outputs.version }}_ESP32_S3_Icon256.bin`
+            2. Flash to your Icon256 device using [ESP Flash Tool](https://github.com/Aircoookie/WLED/wiki/Install-WLED-binary) or OTA
+            
+            ### What's Included
+            
+            - 🎨 Icon256 Word Clock usermod
+            - 🎵 Audio Reactive effects
+            - 🔄 Remote OTA Update support
+            
+            ### Remote OTA Configuration
+            
+            ${{ needs.determine-release-type.outputs.is_beta == 'true' && 'Beta testers should configure: `https://raw.githubusercontent.com/' || 'Configure: `https://raw.githubusercontent.com/' }}${{ github.repository }}/beta/${{ needs.determine-release-type.outputs.is_beta == 'true' && 'version-beta.json' || 'version.json' }}`
+            
+            ---
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/....${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-beta-branch:
+    needs: [determine-release-type, create-release]
+    if: needs.determine-release-type.outputs.is_beta == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-release-${{ needs.determine-release-type.outputs.version }}
+          path: release-artifacts
+
+      - name: Update beta branch with version file
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # Create or switch to beta branch
+          git checkout -B beta
+          
+          # Copy version file to root
+          cp release-artifacts/version-beta.json version-beta.json
+          
+          # Commit and push
+          git add version-beta.json
+          git commit -m "Update beta version to ${{ needs.determine-release-type.outputs.version }}"
+          git push -f origin beta
+
+  update-main-branch:
+    needs: [determine-release-type, create-release]
+    if: needs.determine-release-type.outputs.is_beta == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-release-${{ needs.determine-release-type.outputs.version }}
+          path: release-artifacts
+
+      - name: Update main branch with version file
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # Ensure we're on main
+          git checkout main
+          
+          # Copy version file to root
+          cp release-artifacts/version.json version.json
+          
+          # Commit and push
+          git add version.json
+          git commit -m "Update production version to ${{ needs.determine-release-type.outputs.version }}"
+          git push origin main
 
