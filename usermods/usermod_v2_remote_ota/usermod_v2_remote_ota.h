@@ -35,6 +35,13 @@ public:
   void setup() {
     initDone = true;
     currentVersion = String(versionString);
+    
+    #ifdef REMOTE_OTA_VERSION_URL
+      if (versionCheckUrl.isEmpty()) {
+        versionCheckUrl = String(REMOTE_OTA_VERSION_URL);
+      }
+    #endif
+    
     lastCheck = millis() - checkInterval + 30000;
   }
 
