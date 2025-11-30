@@ -2,6 +2,8 @@
 
 #define FX_MODE_ICON256_WORD_CLOCK 218
 
+extern Timezone* tz;
+
 byte frame[32];
 
 // Helper to set a pixel in the frame buffer
@@ -71,21 +73,30 @@ uint16_t mode_icon256_word_clock()
 {
     if (!strip.isMatrix) return 0; // Not for strips
 
-    clearFrame();
-
-    // Update local time from NTP
-    updateLocalTime();
+    // Get fresh time directly from toki - this ensures we use the latest NTP-synced time
+    unsigned long tokiSec = toki.second();
+    uint8_t timeSource = toki.getTimeSource();
     
-    addWordToFrame(w_en_the);
-    addWordToFrame(w_en_time_);
-    addWordToFrame(w_en_is);
+    clearFrame();
+    
+    // Only display time if we have a valid time source (NTP synced or time set via API)
+    // timeSource will be 0 (TOKI_TS_NONE) until NTP syncs or time is set
+    if (timeSource > 0 && tokiSec > 60) {  // tokiSec > 60 ensures we're not just counting from boot
+        unsigned long tmc = tokiSec + utcOffsetSecs;
+        time_t currentTime = tz->toLocal(tmc);
 
-    byte h = hour(localTime);
-    byte m = minute(localTime);
-    byte s = second(localTime);
+        addWordToFrame(w_en_the);
+        addWordToFrame(w_en_time_);
+        addWordToFrame(w_en_is);
 
-    showTimeWords(h, m, s);
-    showSeconds(s);
+        byte h = hour(currentTime);
+        byte m = minute(currentTime);
+        byte s = second(currentTime);
+
+        showTimeWords(h, m, s);
+        showSeconds(s);
+    }
+    // If time not synced yet, display stays blank (all LEDs off)
 
     uint8_t palette_index = 0;
     // Render frame to the strip
@@ -116,6 +127,16 @@ private:
 public:
     void setup() override
     {
+        // Enable NTP if not already enabled - word clock needs accurate time
+        if (!ntpEnabled) {
+            Serial.println("WordClock: Enabling NTP for time sync");
+            ntpEnabled = true;
+            if (WLED_CONNECTED && !ntpConnected) {
+                ntpConnected = ntpUdp.begin(ntpLocalPort);
+                Serial.printf("WordClock: NTP UDP started: %s\n", ntpConnected ? "success" : "failed");
+            }
+        }
+        
         strip.isMatrix = true;
         strip.panel.clear();
         WS2812FX::Panel p;
