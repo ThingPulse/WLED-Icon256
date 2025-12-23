@@ -117,7 +117,7 @@ uint16_t mode_icon256_word_clock()
     return FRAMETIME;
 }
 
-static const char _data_FX_MODE_WORD_CLOCK[] PROGMEM = "Icon256@!,Spark rate,Diffusion Speed,Turbulence,,Use palette;;Color;;2;pal=35";
+static const char _data_FX_MODE_WORD_CLOCK[] PROGMEM = "Icon256 Word Clock@;;;2";
 
 class UsermodIcon256WordClock : public Usermod
 {
@@ -171,6 +171,10 @@ public:
 
         // Add the effect to the list
         strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
+        
+        // Set word clock as default effect for the main segment
+        // This will be the effect used on first boot or factory reset
+        strip.getMainSegment().setMode(FX_MODE_ICON256_WORD_CLOCK);
     }
 
     void loop() override

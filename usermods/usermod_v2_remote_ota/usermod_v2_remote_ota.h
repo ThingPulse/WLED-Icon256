@@ -16,7 +16,7 @@ private:
   bool enabled = true;
   bool initDone = false;
   unsigned long lastCheck = 0;
-  unsigned long checkInterval = 3600000; // 1 hour
+  unsigned long checkInterval = 300000; // 5 minutes default (for easier testing)
   String versionCheckUrl = "";
   String firmwareUrl = "";
   bool updateAvailable = false;
@@ -171,7 +171,7 @@ public:
     top[FPSTR(_enabled)] = enabled;
     top[FPSTR(_versionCheckUrl)] = versionCheckUrl;
     top[FPSTR(_firmwareUrl)] = firmwareUrl;
-    top[F("checkIntervalHours")] = checkInterval / 3600000;
+    top[F("checkIntervalMinutes")] = checkInterval / 60000;
   }
 
   bool readFromConfig(JsonObject& root) override {
@@ -184,9 +184,10 @@ public:
     configComplete &= getJsonValue(top[FPSTR(_versionCheckUrl)], versionCheckUrl);
     configComplete &= getJsonValue(top[FPSTR(_firmwareUrl)], firmwareUrl);
     
-    int hours = checkInterval / 3600000;
-    configComplete &= getJsonValue(top[F("checkIntervalHours")], hours);
-    checkInterval = hours * 3600000;
+    int minutes = checkInterval / 60000;
+    configComplete &= getJsonValue(top[F("checkIntervalMinutes")], minutes);
+    if (minutes < 1) minutes = 1; // Minimum 1 minute
+    checkInterval = minutes * 60000;
 
     return configComplete;
   }
