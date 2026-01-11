@@ -95,8 +95,10 @@ uint16_t mode_icon256_word_clock()
 
         showTimeWords(h, m, s);
         showSeconds(s);
+    } else {
+        // If time not synced yet, display "SYNC" to indicate waiting for time sync
+        addWordToFrame(w_en_sync_sync);
     }
-    // If time not synced yet, display stays blank (all LEDs off)
 
     uint8_t palette_index = 0;
     // Render frame to the strip
