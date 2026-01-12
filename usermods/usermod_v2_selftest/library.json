@@ -1,0 +1,21 @@
+{
+  "name": "WLED Self-Test Usermod",
+  "version": "1.0.0",
+  "keywords": "wled, usermod, selftest, diagnostics",
+  "description": "Self-test diagnostics usermod for WLED - responds to 'selftest' serial command with system diagnostics",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aircoookie/WLED.git"
+  },
+  "authors": [
+    {
+      "name": "WLED Community"
+    }
+  ],
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build": {
+    "libArchive": false
+  }
+}
