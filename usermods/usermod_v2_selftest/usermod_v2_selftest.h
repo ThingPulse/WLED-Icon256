@@ -93,19 +93,33 @@ private:
     
     addTestMessage(data, "Current Brightness", String(bri), "OK");
     
-    // Test 4: WiFi
-    bool wifiConnected = WiFi.status() == WL_CONNECTED;
-    addTestMessage(data, "WiFi Status", wifiConnected ? "Connected" : "Not connected", 
-                   wifiConnected ? "OK" : "NOK");
-    
-    if (wifiConnected) {
-      addTestMessage(data, "WiFi SSID", WiFi.SSID(), "OK");
-      addTestMessage(data, "WiFi IP", WiFi.localIP().toString(), "OK");
-      
-      int rssi = WiFi.RSSI();
-      addTestMessage(data, "WiFi RSSI", String(rssi) + "dBm", 
-                    rssi > -80 ? "OK" : "NOK");
+    // Test 4: Microphone (I2S)
+    #if defined(I2S_SDPIN) && (I2S_SDPIN >= 0)
+    // Microphone is configured via build flags
+    addTestMessage(data, "Microphone Type", "ICS-43434 I2S", "OK");
+    addTestMessage(data, "I2S SD Pin", String(I2S_SDPIN), "OK");
+    #ifdef I2S_WSPIN
+    addTestMessage(data, "I2S WS Pin", String(I2S_WSPIN), "OK");
+    #endif
+    #ifdef I2S_CKPIN
+    addTestMessage(data, "I2S CK Pin", String(I2S_CKPIN), "OK");
+    #endif
+    #ifdef DMTYPE
+    String dmType = "";
+    switch(DMTYPE) {
+      case 0: dmType = "Analog/Disabled"; break;
+      case 1: dmType = "I2S Generic"; break;
+      case 2: dmType = "ES7243"; break;
+      case 3: dmType = "SPH0645"; break;
+      case 4: dmType = "I2S+MCLK"; break;
+      case 5: dmType = "PDM"; break;
+      default: dmType = "Unknown";
     }
+    addTestMessage(data, "Audio Type", dmType, "OK");
+    #endif
+    #else
+    addTestMessage(data, "Microphone", "Not configured", "NOK");
+    #endif
     
     // Test 5: File System
     #ifdef ESP32
