@@ -144,32 +144,50 @@ private:
   }
   
   void runVisualLedTest() {
-    // Save current state
+    // Get main segment and save current state
+    uint8_t mainSeg = strip.getMainSegmentId();
+    Segment& seg = strip.getSegment(mainSeg);
+    uint8_t oldMode = seg.mode;
+    uint32_t oldCol0 = seg.colors[0];
+    uint32_t oldCol1 = seg.colors[1];
+    uint32_t oldCol2 = seg.colors[2];
     uint8_t oldBri = bri;
     
-    // Run test pattern - directly control LEDs
+    // Switch to Solid effect (FX_MODE_STATIC = 0)
+    seg.setMode(FX_MODE_STATIC);
     bri = 128;
-    strip.setBrightness(128);
+    briT = 128;
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
     
-    strip.fill(RED);
-    strip.show();
-    delay(500);
+    // Test RED
+    seg.colors[0] = RED;
+    seg.colors[1] = BLACK;
+    seg.colors[2] = BLACK;
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
+    for (int i = 0; i < 20; i++) { strip.service(); delay(50); }
     
-    strip.fill(GREEN);
-    strip.show();
-    delay(500);
+    // Test GREEN
+    seg.colors[0] = GREEN;
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
+    for (int i = 0; i < 20; i++) { strip.service(); delay(50); }
     
-    strip.fill(BLUE);
-    strip.show();
-    delay(500);
+    // Test BLUE
+    seg.colors[0] = BLUE;
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
+    for (int i = 0; i < 20; i++) { strip.service(); delay(50); }
     
-    strip.fill(WHITE);
-    strip.show();
-    delay(500);
+    // Test WHITE
+    seg.colors[0] = WHITE;
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
+    for (int i = 0; i < 20; i++) { strip.service(); delay(50); }
     
-    // Restore previous state
+    // Restore original state
+    seg.setMode(oldMode);
+    seg.colors[0] = oldCol0;
+    seg.colors[1] = oldCol1;
+    seg.colors[2] = oldCol2;
     bri = oldBri;
-    strip.setBrightness(oldBri);
+    briT = oldBri;
     stateUpdated(CALL_MODE_DIRECT_CHANGE);
   }
 

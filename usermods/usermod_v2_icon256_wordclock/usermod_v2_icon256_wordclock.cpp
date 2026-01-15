@@ -97,7 +97,7 @@ uint16_t mode_icon256_word_clock()
         showSeconds(s);
     } else {
         // If time not synced yet, display "SYNC" to indicate waiting for time sync
-        addWordToFrame(w_en_sync_sync);
+        //addWordToFrame(w_en_sync_sync);
     }
 
     uint8_t palette_index = 0;
