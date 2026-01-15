@@ -26,7 +26,7 @@ private:
   }
   
   void runSelfTest() {
-    DynamicJsonDocument doc(2048);
+    DynamicJsonDocument doc(4096);
     JsonArray data = doc.to<JsonArray>();
     
     // Test 1: Basic chip information
