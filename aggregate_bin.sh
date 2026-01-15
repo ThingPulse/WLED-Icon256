@@ -34,4 +34,5 @@ echo "Esptool: $esptool"
 echo "Home: $home_dir"
 #srec_cat -output "$app" -binary "$bootloader" -binary -offset 0x1000 -fill 0xff 0x0000 0x8000 "$partitions" -binary -offset 0x8000 -fill 0xff 0x8000 0xe000 "$boot_app" -binary -offset 0xe000 -fill 0xff 0xe000 0x10000 "$firmware" -binary -offset 0x10000
 python3 $esptool --chip ESP32-S3 merge_bin -o "$app" --flash_mode dio --flash_size 4MB 0x0000 "$bootloader" 0x8000 "$partitions" 0x10000 "$firmware"
+echo `md5 $app`
 echo "Done, created '$app'."

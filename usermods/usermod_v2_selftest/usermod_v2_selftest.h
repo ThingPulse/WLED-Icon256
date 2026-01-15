@@ -2,6 +2,10 @@
 
 #include "wled.h"
 
+#ifdef ESP32
+#include <driver/i2s.h>
+#endif
+
 /*
  * Self-Test Usermod
  * 
@@ -121,7 +125,39 @@ private:
     addTestMessage(data, "Microphone", "Not configured", "NOK");
     #endif
     
-    // Test 5: File System
+    // Test 5: Speaker/Amplifier (MAX98357A I2S DAC)
+    #ifdef ESP32
+    // Icon256 MAX98357A pin configuration
+    addTestMessage(data, "Speaker Amplifier", "MAX98357AETE+T", "OK");
+    addTestMessage(data, "Speaker I2S DATA", "GPIO1", "OK");
+    addTestMessage(data, "Speaker I2S BCLK", "GPIO40", "OK");
+    addTestMessage(data, "Speaker I2S LRCLK", "GPIO39", "OK");
+    addTestMessage(data, "Speaker I2S MCLK", "GPIO41", "OK");
+    addTestMessage(data, "Speaker CTRL/SD", "GPIO42", "OK");
+    #endif
+    
+    // Test 6: Buttons (with 10k pull-up resistors to 3.3V)
+    #ifdef ESP32
+    const int BUTTON_1_PIN = 11;
+    const int BUTTON_2_PIN = 12;
+    const int BUTTON_3_PIN = 13;
+    
+    // Configure pins as input (external pull-ups, so no internal pull-up needed)
+    pinMode(BUTTON_1_PIN, INPUT);
+    pinMode(BUTTON_2_PIN, INPUT);
+    pinMode(BUTTON_3_PIN, INPUT);
+    
+    // Read button states - should be HIGH when not pressed
+    bool btn1High = digitalRead(BUTTON_1_PIN) == HIGH;
+    bool btn2High = digitalRead(BUTTON_2_PIN) == HIGH;
+    bool btn3High = digitalRead(BUTTON_3_PIN) == HIGH;
+    
+    addTestMessage(data, "Button 1 (GPIO11)", btn1High ? "Not Pressed" : "Pressed/Shorted", btn1High ? "OK" : "NOK");
+    addTestMessage(data, "Button 2 (GPIO12)", btn2High ? "Not Pressed" : "Pressed/Shorted", btn2High ? "OK" : "NOK");
+    addTestMessage(data, "Button 3 (GPIO13)", btn3High ? "Not Pressed" : "Pressed/Shorted", btn3High ? "OK" : "NOK");
+    #endif
+    
+    // Test 7: File System
     #ifdef ESP32
     uint32_t totalBytes = WLED_FS.totalBytes();
     uint32_t usedBytes = WLED_FS.usedBytes();
@@ -140,19 +176,22 @@ private:
     addTestMessage(data, "FS Used", String(fs_info.usedBytes / 1024) + "kb", "OK");
     #endif
     
-    // Test 6: Build information
+    // Test 8: Build information
     addTestMessage(data, "Build Date", String(__DATE__), "OK");
     addTestMessage(data, "Build Time", String(__TIME__), "OK");
     
-    // Test 7: Uptime
+    // Test 9: Uptime
     addTestMessage(data, "Uptime", String(millis() / 1000) + "s", "OK");
     
     // Output JSON to serial
     serializeJson(doc, Serial);
     Serial.println();
     
-    // Test 8: Run visual LED test
+    // Test 10: Run visual LED test
     runVisualLedTest();
+    
+    // Test 11: Run audio speaker test
+    runAudioTest();
     
     lastTest = millis();
   }
@@ -203,6 +242,76 @@ private:
     bri = oldBri;
     briT = oldBri;
     stateUpdated(CALL_MODE_DIRECT_CHANGE);
+  }
+  
+  void runAudioTest() {
+    #ifdef ESP32
+    // Play test tones through MAX98357A speaker
+    const int I2S_SPK_DATA = 1;
+    const int I2S_SPK_BCLK = 40;
+    const int I2S_SPK_LRCLK = 39;
+    const int I2S_SPK_MCLK = 41;
+    const int I2S_SPK_CTRL = 42;
+    
+    // Configure I2S for audio output
+    i2s_config_t i2s_config = {
+      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+      .sample_rate = 16000,
+      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+      .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+      .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+      .dma_buf_count = 8,
+      .dma_buf_len = 64,
+      .use_apll = false,
+      .tx_desc_auto_clear = true,
+      .fixed_mclk = 0
+    };
+    
+    i2s_pin_config_t pin_config = {
+      .mck_io_num = I2S_SPK_MCLK,
+      .bck_io_num = I2S_SPK_BCLK,
+      .ws_io_num = I2S_SPK_LRCLK,
+      .data_out_num = I2S_SPK_DATA,
+      .data_in_num = I2S_PIN_NO_CHANGE
+    };
+    
+    // Enable MAX98357A by setting CTRL pin HIGH (SD pin - shutdown when LOW)
+    pinMode(I2S_SPK_CTRL, OUTPUT);
+    digitalWrite(I2S_SPK_CTRL, HIGH);
+    delay(10);
+    
+    // Install and configure I2S driver on I2S_NUM_1 (to avoid conflict with microphone on I2S_NUM_0)
+    if (i2s_driver_install(I2S_NUM_1, &i2s_config, 0, NULL) == ESP_OK) {
+      i2s_set_pin(I2S_NUM_1, &pin_config);
+      
+      // Generate simple test tones (3 beeps)
+      const int sampleRate = 16000;
+      const int beepFreq = 1000; // 1kHz tone
+      const int beepDuration = 200; // 200ms per beep
+      const int samples = (sampleRate * beepDuration) / 1000;
+      int16_t audioBuffer[samples];
+      
+      // Generate sine wave tone
+      for (int b = 0; b < 3; b++) {  // 3 beeps
+        for (int i = 0; i < samples; i++) {
+          float t = (float)i / sampleRate;
+          audioBuffer[i] = (int16_t)(sin(2.0 * PI * beepFreq * t) * 8000); // Amplitude 8000
+        }
+        
+        size_t bytes_written;
+        i2s_write(I2S_NUM_1, audioBuffer, sizeof(audioBuffer), &bytes_written, portMAX_DELAY);
+        delay(100); // Gap between beeps
+      }
+      
+      // Small delay then cleanup
+      delay(200);
+      i2s_driver_uninstall(I2S_NUM_1);
+      
+      // Disable MAX98357A by setting CTRL pin LOW
+      digitalWrite(I2S_SPK_CTRL, LOW);
+    }
+    #endif
   }
 
 public:
