@@ -6,6 +6,9 @@ extern Timezone* tz;
 
 byte frame[32];
 
+// Language selection: 0 = English (default), 1 = Swiss German
+static byte wordClockLanguage = 0;
+
 // Helper to set a pixel in the frame buffer
 void setFrame(byte row, byte col, bool on)
 {
@@ -31,6 +34,7 @@ void addWordToFrame(const byte word[3])
 }
 
 #include "lang_en.h" // Include the English language definitions for the word clock
+#include "lang_ch.h" // Include the Swiss German language definitions for the word clock
 
 const byte w_en_seconds[16][3] PROGMEM = {
   {15,  0, 1}, {15,  1, 1}, {15,  2, 1}, {15,  3, 1}, {15,  4, 1}, {15,  5, 1},
@@ -85,15 +89,18 @@ uint16_t mode_icon256_word_clock()
         unsigned long tmc = tokiSec + utcOffsetSecs;
         time_t currentTime = tz->toLocal(tmc);
 
-        addWordToFrame(w_en_the);
-        addWordToFrame(w_en_time_);
-        addWordToFrame(w_en_is);
-
         byte h = hour(currentTime);
         byte m = minute(currentTime);
         byte s = second(currentTime);
+        tm timeinfo;
+        gmtime_r(&currentTime, &timeinfo);
 
-        showTimeWords(h, m, s);
+        // Call appropriate language function based on selected language
+        if (wordClockLanguage == 1) {
+            showTimeWordsSwissGerman(h, m, s, timeinfo);
+        } else {
+            showTimeWords(h, m, s);
+        }
         showSeconds(s);
     } else {
         // If time not synced yet, display "SYNC" to indicate waiting for time sync
@@ -154,23 +161,6 @@ public:
         strip.deserializeMap();
         strip.makeAutoSegments(true);
 
-        // Configure buttons on pins 11, 12, 13 with pullup
-        // These presets should be created via web UI or API with:
-        // Preset 251: {"seg":{"pal":"r+"}} - next palette
-        // Preset 252: {"seg":{"pal":"r-"}} - previous palette  
-        // Preset 253: {"on":"t"} - toggle on/off
-        
-        // Allocate pins and add buttons to the global buttons vector
-        if (PinManager::allocatePin(11, false, PinOwner::Button)) {
-            buttons.emplace_back(11, BTN_TYPE_PUSH, 251);  // Button 1: Next palette
-        }
-        if (PinManager::allocatePin(12, false, PinOwner::Button)) {
-            buttons.emplace_back(12, BTN_TYPE_PUSH, 252);  // Button 2: Previous palette
-        }
-        if (PinManager::allocatePin(13, false, PinOwner::Button)) {
-            buttons.emplace_back(13, BTN_TYPE_PUSH, 253);  // Button 3: Toggle display
-        }
-
         // Add the effect to the list
         strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
         
@@ -182,6 +172,38 @@ public:
     void loop() override
     {
         // Nothing to do in the main loop
+    }
+
+    /**
+     * addToConfig() - adds custom settings to cfg.json
+     */
+    void addToConfig(JsonObject& root) override
+    {
+        JsonObject top = root.createNestedObject(F("Icon256 Word Clock"));
+        top[F("Language")] = wordClockLanguage;
+    }
+
+    /**
+     * readFromConfig() - reads custom settings from cfg.json
+     */
+    bool readFromConfig(JsonObject& root) override
+    {
+        JsonObject top = root[F("Icon256 Word Clock")];
+        bool configComplete = !top.isNull();
+        
+        configComplete &= getJsonValue(top[F("Language")], wordClockLanguage, 0);
+        
+        return configComplete;
+    }
+
+    /**
+     * appendConfigData() - adds UI elements (dropdown) to the settings page
+     */
+    void appendConfigData(Print& uiScript) override
+    {
+        uiScript.print(F("dd=addDropdown('Icon256 Word Clock','Language');"));
+        uiScript.print(F("addOption(dd,'English',0);"));
+        uiScript.print(F("addOption(dd,'Swiss German',1);"));
     }
 
     uint16_t getId() override
