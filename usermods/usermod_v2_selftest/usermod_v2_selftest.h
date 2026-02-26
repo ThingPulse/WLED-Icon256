@@ -146,6 +146,10 @@ private:
     pinMode(BUTTON_1_PIN, INPUT);
     pinMode(BUTTON_2_PIN, INPUT);
     pinMode(BUTTON_3_PIN, INPUT);
+
+    // Set left right select of the microphone to GND to avoid floating pin
+    pinMode(5, OUTPUT);
+    digitalWrite(5, LOW);
     
     // Read button states - should be HIGH when not pressed
     bool btn1High = digitalRead(BUTTON_1_PIN) == HIGH;
