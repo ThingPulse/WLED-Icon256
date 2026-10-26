@@ -5,14 +5,14 @@ This usermod provides comprehensive diagnostic testing for WLED devices, outputt
 ## Features
 
 - **JSON Test Results**: Outputs test results in structured JSON format with name/value/result fields
-- **Comprehensive Tests**: Memory, WiFi, LED configuration, file system, and build info
-- **Visual LED Test**: Separate command to cycle through colors (RED/GREEN/BLUE/WHITE)
+- **Comprehensive Tests**: Memory, LED configuration, microphone configuration, buttons, speaker playback, file system, and build info
+- **Visual LED Test**: Cycles through RED/GREEN/BLUE/WHITE as part of the self-test
 - **Pass/Fail Indicators**: Each test includes OK/NOK result status
 
 ## Commands
 
 ### Self-Test (JSON Output)
-Runs all diagnostic tests and outputs results as JSON array.
+Runs all diagnostic tests, the LED sequence, and three speaker tones, then outputs one JSON array to serial. The report signals completion.
 
 **Serial Monitor:**
 ```json
@@ -32,17 +32,8 @@ curl -X POST http://[device-ip]/json/state -H "Content-Type: application/json" -
   {"name":"Chip Model","value":"ESP32-D0WDQ6","result":"OK"},
   {"name":"Free Heap","value":"234kb","result":"OK"},
   {"name":"LED Count","value":"256","result":"OK"},
-  {"name":"WiFi Status","value":"Connected","result":"OK"},
-  {"name":"WiFi RSSI","value":"-45dBm","result":"OK"}
+  {"name":"Speaker Playback","value":"Three tones transmitted; confirm sound by ear","result":"OK"}
 ]
-```
-
-### Visual LED Test
-Cycles through colors without JSON output.
-
-**Serial Monitor:**
-```json
-{"VT":true}
 ```
 
 ## Test Categories
@@ -66,11 +57,18 @@ Cycles through colors without JSON output.
 - **Bus Details**: Type, length, and GPIO pins for each bus
 - **Current Brightness**: Current brightness level (0-255)
 
-### Network Tests
-- **WiFi Status**: Connection state (NOK if not connected)
-- **WiFi SSID**: Connected network name
-- **WiFi IP**: Assigned IP address
-- **WiFi RSSI**: Signal strength (NOK if < -80dBm)
+### Network scope
+Wi-Fi association is not required at this manufacturing stage. The old WiFi Status
+check tested `WiFi.status() == WL_CONNECTED`, not radio health, and was removed.
+An unprovisioned device therefore does not fail this self-test for being offline.
+
+### Speaker playback
+The MAX98357A test sends three 1 kHz, 200 ms stereo tones with 100 ms silence
+between tones. Driver installation, pin setup, full writes, and driver cleanup
+are checked; any error produces a Speaker Playback NOK row. Writes have a bounded
+timeout, and the amplifier is disabled on success and failure. A playback OK
+confirms software transmission only: the operator must still verify audible sound.
+Speaker pin/configuration rows do not establish physical speaker health.
 
 ### File System Tests
 - **FS Total**: Total filesystem size (NOK if 0)

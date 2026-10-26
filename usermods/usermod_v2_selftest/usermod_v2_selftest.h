@@ -26,7 +26,7 @@ private:
   }
   
   void runSelfTest() {
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(6144);
     JsonArray data = doc.to<JsonArray>();
     
     // Test 1: Basic chip information
@@ -187,15 +187,15 @@ private:
     // Test 9: Uptime
     addTestMessage(data, "Uptime", String(millis() / 1000) + "s", "OK");
     
-    // Output JSON to serial
-    serializeJson(doc, Serial);
-    Serial.println();
-    
     // Test 10: Run visual LED test
     runVisualLedTest();
     
     // Test 11: Run audio speaker test
-    runAudioTest();
+    runAudioTest(data);
+
+    // The report is the completion signal for the factory flasher.
+    serializeJson(doc, Serial);
+    Serial.println();
     
     lastTest = millis();
   }
@@ -248,7 +248,7 @@ private:
     stateUpdated(CALL_MODE_DIRECT_CHANGE);
   }
   
-  void runAudioTest() {
+  void runAudioTest(JsonArray& data) {
     #ifdef ESP32
     // Play test tones through MAX98357A speaker
     const int I2S_SPK_DATA = 1;
@@ -280,40 +280,56 @@ private:
       .data_in_num = I2S_PIN_NO_CHANGE
     };
     
-    // Enable MAX98357A by setting CTRL pin HIGH (SD pin - shutdown when LOW)
+    // Keep the amplifier disabled until I2S is ready, and on every exit path.
     pinMode(I2S_SPK_CTRL, OUTPUT);
-    digitalWrite(I2S_SPK_CTRL, HIGH);
-    delay(10);
-    
-    // Install and configure I2S driver on I2S_NUM_1 (to avoid conflict with microphone on I2S_NUM_0)
-    if (i2s_driver_install(I2S_NUM_1, &i2s_config, 0, NULL) == ESP_OK) {
-      i2s_set_pin(I2S_NUM_1, &pin_config);
-      
-      // Generate simple test tones (3 beeps)
-      const int sampleRate = 16000;
-      const int beepFreq = 1000; // 1kHz tone
-      const int beepDuration = 200; // 200ms per beep
-      const int samples = (sampleRate * beepDuration) / 1000;
-      int16_t audioBuffer[samples];
-      
-      // Generate sine wave tone
-      for (int b = 0; b < 3; b++) {  // 3 beeps
-        for (int i = 0; i < samples; i++) {
-          float t = (float)i / sampleRate;
-          audioBuffer[i] = (int16_t)(sin(2.0 * PI * beepFreq * t) * 8000); // Amplitude 8000
+    digitalWrite(I2S_SPK_CTRL, LOW);
+    esp_err_t error = i2s_driver_install(I2S_NUM_1, &i2s_config, 0, NULL);
+    const bool installed = error == ESP_OK;
+    const char* stage = "driver install";
+    if (installed) {
+      stage = "pin configuration";
+      error = i2s_set_pin(I2S_NUM_1, &pin_config);
+    }
+    if (error == ESP_OK) {
+      digitalWrite(I2S_SPK_CTRL, HIGH);
+      delay(10);
+      stage = "audio write";
+      // Small stereo blocks avoid a 6.4 KB stack allocation. Each frame has
+      // identical left/right samples: 1 kHz at 16 kHz, 200 ms per beep.
+      constexpr int frames = 160;
+      int16_t buffer[frames * 2];
+      for (int beep = 0; beep < 3 && error == ESP_OK; beep++) {
+        for (int i = 0; i < frames; i++) {
+          const int16_t sample = (int16_t)(sin(2.0 * PI * (i % 16) / 16.0) * 8000);
+          buffer[2 * i] = buffer[2 * i + 1] = sample;
         }
-        
-        size_t bytes_written;
-        i2s_write(I2S_NUM_1, audioBuffer, sizeof(audioBuffer), &bytes_written, portMAX_DELAY);
-        delay(100); // Gap between beeps
+        for (int block = 0; block < 20 && error == ESP_OK; block++) {
+          size_t written = 0;
+          error = i2s_write(I2S_NUM_1, buffer, sizeof(buffer), &written, pdMS_TO_TICKS(1000));
+          if (error == ESP_OK && written != sizeof(buffer)) error = ESP_FAIL;
+        }
+        // Queue 100 ms of silence so DMA drains the tone before the next one.
+        memset(buffer, 0, sizeof(buffer));
+        for (int block = 0; block < 10 && error == ESP_OK; block++) {
+          size_t written = 0;
+          error = i2s_write(I2S_NUM_1, buffer, sizeof(buffer), &written, pdMS_TO_TICKS(1000));
+          if (error == ESP_OK && written != sizeof(buffer)) error = ESP_FAIL;
+        }
       }
-      
-      // Small delay then cleanup
-      delay(200);
-      i2s_driver_uninstall(I2S_NUM_1);
-      
-      // Disable MAX98357A by setting CTRL pin LOW
-      digitalWrite(I2S_SPK_CTRL, LOW);
+      if (error == ESP_OK) delay(100); // Drain the remaining DMA silence.
+    }
+    digitalWrite(I2S_SPK_CTRL, LOW);
+    if (installed) {
+      esp_err_t cleanupError = i2s_driver_uninstall(I2S_NUM_1);
+      if (error == ESP_OK && cleanupError != ESP_OK) {
+        stage = "driver cleanup";
+        error = cleanupError;
+      }
+    }
+    if (error == ESP_OK) {
+      addTestMessage(data, "Speaker Playback", "Three tones transmitted; confirm sound by ear", "OK");
+    } else {
+      addTestMessage(data, "Speaker Playback", String(stage) + ": " + esp_err_to_name(error), "NOK");
     }
     #endif
   }
