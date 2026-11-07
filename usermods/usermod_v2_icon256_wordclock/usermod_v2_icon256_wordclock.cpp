@@ -6,8 +6,11 @@ extern Timezone* tz;
 
 byte frame[32];
 
-// Language selection: 0 = English (default), 1 = Swiss German
+// Language selection: 0 = English (default), 1 = Swiss German, 2 = German
 static byte wordClockLanguage = 0;
+static bool germanRegionalQuarters = false;
+static bool germanHalfHourRelative = false;
+static bool germanTimeOfDay = true;
 
 // Helper to set a pixel in the frame buffer
 void setFrame(byte row, byte col, bool on)
@@ -34,6 +37,7 @@ void addWordToFrame(const byte word[3])
 }
 
 #include "lang_en.h" // Include the English language definitions for the word clock
+#include "lang_de.h"
 #include "lang_ch.h" // Include the Swiss German language definitions for the word clock
 
 const byte w_en_seconds[16][3] PROGMEM = {
@@ -98,13 +102,15 @@ uint16_t mode_icon256_word_clock()
         // Call appropriate language function based on selected language
         if (wordClockLanguage == 1) {
             showTimeWordsSwissGerman(h, m, s, timeinfo);
+        } else if (wordClockLanguage == 2) {
+            showTimeWordsGerman(h, m, germanRegionalQuarters, germanHalfHourRelative, germanTimeOfDay);
         } else {
             showTimeWords(h, m, s);
         }
         showSeconds(s);
     } else {
         // If time not synced yet, display "SYNC" to indicate waiting for time sync
-        addWordToFrame(w_en_sync_sync);
+        addWordToFrame(wordClockLanguage == 2 ? w_de_sync : w_en_sync_sync);
     }
 
     uint8_t palette_index = 0;
@@ -181,6 +187,9 @@ public:
     {
         JsonObject top = root.createNestedObject(F("Icon256 Word Clock"));
         top[F("Language")] = wordClockLanguage;
+        top[F("German regional quarters")] = germanRegionalQuarters;
+        top[F("German half-hour relative")] = germanHalfHourRelative;
+        top[F("German time of day")] = germanTimeOfDay;
     }
 
     /**
@@ -193,6 +202,10 @@ public:
         
         configComplete &= getJsonValue(top[F("Language")], wordClockLanguage, 0);
         
+        configComplete &= getJsonValue(top[F("German regional quarters")], germanRegionalQuarters, false);
+        configComplete &= getJsonValue(top[F("German half-hour relative")], germanHalfHourRelative, false);
+        configComplete &= getJsonValue(top[F("German time of day")], germanTimeOfDay, true);
+
         return configComplete;
     }
 
@@ -204,6 +217,7 @@ public:
         uiScript.print(F("dd=addDropdown('Icon256 Word Clock','Language');"));
         uiScript.print(F("addOption(dd,'English',0);"));
         uiScript.print(F("addOption(dd,'Swiss German',1);"));
+        uiScript.print(F("addOption(dd,'German',2);"));
     }
 
     uint16_t getId() override

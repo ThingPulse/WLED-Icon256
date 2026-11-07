@@ -1,3 +1,41 @@
+# Icon256 word clock languages
+
+Select **English (0)**, **Swiss German (1)**, or **German (2)** under
+**Settings → Usermods → Icon256 Word Clock → Language** and save.
+Each language requires its matching physical letter stencil.
+
+German uses minute-precise wording, with VIERTEL NACH/VOR and HALB by default.
+The saved German-only settings are:
+
+- **German regional quarters** (off): VIERTEL / DREIVIERTEL followed by the next hour at :15 / :45.
+- **German half-hour relative** (off): FÜNF VOR HALB at :25 and FÜNF NACH HALB at :35.
+- **German time of day** (on): NACHTS (00–04, 22–23), MORGENS (05–09),
+  VORMITTAGS (10–11), NACHMITTAGS (12–17), ABENDS (18–21), using the actual local hour.
+
+The German stencil below has 16 cells per row; each umlaut takes one cell.
+Seconds use the last row, with one tens digit and one units digit lit.
+
+```text
+ESXISTXEINESANPR
+EINSZWEIDREIVIER
+FÜNFSECHSSIEBENX
+ACHTNEUNELFZWÖLF
+ZEHNXUNDXZWANZIG
+MINUTENXVIERTELX
+VORXNACHXHALBXER
+EINSZWEIDREIVIER
+FÜNFSECHSSIEBENX
+ACHTNEUNZEHNELFX
+ZWÖLFXUHRRLAMIDE
+MORGENSXABENDSAG
+VORMITTAGSNACHTS
+NACHMITTAGSRBINS
+EINAUSXSYNCLWIFI
+0123450123456789
+```
+
+---
+
 # Usermod user FX
 
 This usermod is a common place to put various users’ WLED effects. It lets you load your own custom effects or bring back deprecated ones—without touching core WLED source code.
