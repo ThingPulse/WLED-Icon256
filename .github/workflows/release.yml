@@ -90,6 +90,11 @@ jobs:
             --commit "$(git rev-parse HEAD)" \
             --firmware .pio/build/icon256/firmware.bin --out release-artifacts
 
+      - name: Package USB factory image for ESP App Market
+        run: |
+          python tools/icon256_app_market.py --tag "$RELEASE_TAG" \
+            --boot-app "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
+
       - name: Upload verified draft assets
         uses: actions/upload-artifact@v4
         with:
@@ -116,7 +121,9 @@ jobs:
           path: release-artifacts
 
       - name: Verify downloaded firmware against manifest
-        run: python3 tools/icon256_release.py verify release-artifacts/manifest.json
+        run: |
+          python3 tools/icon256_release.py verify release-artifacts/manifest.json
+          python3 tools/icon256_app_market.py --verify release-artifacts/app-market.json
 
       - name: Create draft release without changing update channels
         env:
@@ -126,5 +133,6 @@ jobs:
           args=(--draft --verify-tag --title "Icon256 ${RELEASE_TAG#v}" --notes-file release-artifacts/release-notes.md)
           if [[ "$IS_PRERELEASE" == "true" ]]; then args+=(--prerelease); fi
           gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "${args[@]}" \
-            release-artifacts/*.bin release-artifacts/manifest.json release-artifacts/SHA256SUMS
+            release-artifacts/*.bin release-artifacts/manifest.json release-artifacts/SHA256SUMS \
+            release-artifacts/app-market.json release-artifacts/icon256.png
 # AI: end

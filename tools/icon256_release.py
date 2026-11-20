@@ -137,6 +137,8 @@ def package(firmware, out, tag, repository, commit):
         'image, not a full-flash factory image. Back up configuration and presets before testing.\n\n'
         'The attached manifest provides compatibility, size and SHA-256 information. '
         'The simplified UI discovers published releases through the verified update feed; prereleases require the testing option.\n\n'
+        'The separate `.factory.bin` and `app-market.json` assets support USB installation through ESP App Market. '
+        'Use the application image above for OTA, never the factory image.\n\n'
         'Publishing this draft makes its assets public; review and test before publishing.\n'
     )
     verify(out / 'manifest.json')
