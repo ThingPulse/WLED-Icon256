@@ -3,6 +3,11 @@
   "repository": "ThingPulse/WLED-Icon256",
   "releases": [
     {
+      "tag": "v17.0.0-icon256.3",
+      "version": "17.0.0-icon256.3",
+      "commit": "88f7cec8fac5fcc51e009f159d640fefa218665d"
+    },
+    {
       "tag": "v17.0.0-icon256.2",
       "version": "17.0.0-icon256.2",
       "commit": "449079285512310d52e17f889757d784acb777a1"
