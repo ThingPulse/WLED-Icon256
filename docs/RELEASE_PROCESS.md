@@ -71,22 +71,38 @@ WLED's own OTA compatibility rules before installation.
 
 ## Update channels
 
-After a stable draft is explicitly published and designated the latest release,
-the stable discovery URL is:
+The simplified UI checks the `icon256-updates/catalog.json` file through
+`raw.githubusercontent.com/ThingPulse/WLED-Icon256` when it first connects, and
+at most once an hour when returning to the page. Setup also offers a manual
+check. Prereleases require an explicit per-browser testing opt-in. Semantic
+version comparison prevents downgrades and sorts numeric prerelease components.
 
-`https://github.com/ThingPulse/WLED-Icon256/releases/latest/download/manifest.json`
+GitHub release asset redirects do not currently allow browser CORS reads. The
+`icon256-update-feed.yml` workflow therefore mirrors **published** release assets
+onto the separate `icon256-updates` branch. It verifies the ESP image, manifest
+and checksum using the same release validator. Each catalog entry pins assets to
+an immutable Git commit. Main firmware source is not changed by this workflow.
+Drafts and incomplete releases never enter the feed; edited/deleted releases
+refresh it. A published version's assets cannot be replaced: publish a new version.
+The feed includes up to the latest 100 published GitHub releases. The workflow
+must exist on the default branch to receive publication events; it can also be
+run manually to rebuild the feed after deployment.
 
-For opted-in prerelease users, discover published releases using the GitHub
-releases API and select a compatible prerelease by semantic version. Do not use
-an array's first entry as a version comparison. Drafts and incomplete releases
-must never be offered. Each selected release's manifest and firmware URLs are
-tag-specific. Stable installations must ignore prereleases unless the user opts
-in. Handle unavailable endpoints, GitHub rate limiting and no published releases
-as normal no-update/error states, without blocking the display.
+The browser downloads over HTTPS, restricts URLs to this repository and immutable
+commits, validates manifest identity/hardware/size, and verifies the full-image
+SHA-256 before upload. The SHA implementation works on local HTTP origins where
+Web Crypto is unavailable. Installation uses the existing `/update` endpoint
+without `skipValidation`; WLED enforces its own OTA lock and compatibility rules.
+The UI confirms the same device MAC and expected version after reboot, rather
+than treating a completed upload as proof of installation. Updates are never
+installed automatically. Missing feeds, offline access and throttling remain
+non-blocking statuses; normal display controls continue to work.
 
-The former `main/version.json` and `beta/version-beta.json` scheme is retired.
-`REMOTE_OTA_VERSION_URL` was unused and has been removed. The simplified UI's
-update notification/download/install feature remains a separate implementation.
+No GitHub token is embedded in firmware or sent to the browser. Release drafts
+can be tested with intercepted browser fixtures; ordinary devices cannot discover
+or download private drafts. A published prerelease and testing opt-in are needed
+for the final public download test. Native iOS/Android app update notifications
+are separate from the banner inside the device's web UI.
 
 ## Local validation
 

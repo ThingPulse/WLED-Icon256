@@ -8,11 +8,12 @@ const assert=require('node:assert/strict');
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH});
 const page=await browser.newPage({viewport:{width:390,height:844}});
 const errors=[],posts=[];
-page.on('pageerror',e=>errors.push(e.message));
+page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error:',e.message)});
 const a={look:0,color:16777215,gradient:0,direction:0};
 const state={on:true,bri:128,mainseg:0,seg:[{id:0,fx:250,col:[[255,255,255]],sx:128}],Icon256:{active:true,clock:{...a},text:{...a},eq:{...a,look:1,gradient:4,direction:1},rain:{...a,look:2}}};
 const info={name:'Test Icon256',ver:'test',icon256:{plate:2,modes:{clock:250,text:122,eq:139,rain:90}}};
 const cfg={id:{name:info.name},if:{ntp:{tz:2}},nw:{ins:[{ssid:'Test WiFi'}]},um:{'Icon256 Word Clock':{Language:2,'Hide seconds':false,'German time of day':true},AudioReactive:{enabled:true}}};
+await page.route('https://raw.githubusercontent.com/**',r=>r.fulfill({status:404,body:''}));
 await page.route('http://icon.test/**',async route=>{
 const u=new URL(route.request().url());
 let body,type='application/json';
@@ -25,6 +26,7 @@ if(route.request().method()==='POST'){
 }else if(u.pathname==='/json')body={state,info};
 else if(u.pathname==='/json/cfg')body=cfg;
 else if(u.pathname==='/json/net')body={networks:[{ssid:'Music WiFi'}]};
+else if(['/updater.js','/update-ui.js'].includes(u.pathname)){body=fs.readFileSync(path+u.pathname.slice(1),'utf8');type='application/javascript';}
 else if(u.pathname==='/app.js'){body=fs.readFileSync(path+'app.js','utf8').replace('__GERMAN_TRANSLATIONS__',fs.readFileSync(path+'de.json','utf8'));type='application/javascript';}
 else {body=fs.readFileSync(path+'index.html','utf8');type='text/html';}
 await route.fulfill({status:200,contentType:type,body:typeof body==='string'?body:JSON.stringify(body)});

@@ -136,7 +136,7 @@ def package(firmware, out, tag, repository, commit):
         f'Use `{filename}` with WLED firmware update (OTA). This is an application '
         'image, not a full-flash factory image. Back up configuration and presets before testing.\n\n'
         'The attached manifest provides compatibility, size and SHA-256 information. '
-        'Automatic update discovery/installation in the simplified UI is not implemented yet.\n\n'
+        'The simplified UI discovers published releases through the verified update feed; prereleases require the testing option.\n\n'
         'Publishing this draft makes its assets public; review and test before publishing.\n'
     )
     verify(out / 'manifest.json')

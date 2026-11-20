@@ -51,7 +51,8 @@
 	const groups = Object.fromEntries(all('[data-plate]').map(g => [g.dataset.plate,g]));
 	const cells = Object.fromEntries(Object.entries(groups).map(([p,g]) => [p,Array.from(g.querySelectorAll('[data-cell]'))]));
 	let state, info, config, mode = 'clock', plate = 'en', connected = false, socket, configDirty = false;
-	let sendChain = Promise.resolve(), busy = 0, pollBusy = false;
+	let sendChain = Promise.resolve(), busy = 0, pollBusy = false, updating = false;
+	const updater = createIcon256Updater({say,tr,getInfo:()=>info,onBusy:value=>{updating=value;if(value){socket?.close();timers.forEach(clearTimeout);timers.clear();}else poll();}});
 	const timers = new Map();
 	function pressed(selector, key, value) { all(selector).forEach(b => b.setAttribute('aria-pressed', String(b.dataset[key] === value))); }
 	async function api(path, data) {
@@ -237,6 +238,7 @@
 		finally { button.disabled = false; }
 	};
 	function liveConnect() {
+		if (updating) return;
 		if (socket && socket.readyState < 2) return;
 		socket = new WebSocket((location.protocol === 'https:' ? 'wss://':'ws://')+location.host+'/ws');
 		socket.binaryType = 'arraybuffer';
@@ -255,19 +257,20 @@
 		socket.onclose = () => say('preview-detail','Waiting for live display…');
 	}
 	async function poll() {
+		if (updating) return;
 		if (pollBusy || busy || timers.size || document.hidden) return;
 		pollBusy = true;
 		try {
 			const result = await api('/json');
 			if (!result.info.icon256) throw new Error('Controls unavailable. Check the connection.');
-			state = result.state; info = result.info; connected = true;
+			state = result.state; info = result.info; connected = true; updater.connected();
 			controlsEnabled(true); say('connection-status','Connected');
 			if (!document.activeElement.matches('#control-page input,#control-page select')) render();
 			liveConnect();
 		} catch(error) { connected = false; controlsEnabled(false); say('connection-status','Connection lost. Retrying…'); }
 		finally { pollBusy = false; }
 	}
-	document.addEventListener('visibilitychange', () => {if (document.hidden) socket?.close(); else poll();});
+	document.addEventListener('visibilitychange', () => {if (document.hidden) socket?.close(); else {poll();updater.resume();}});
 	controlsEnabled(false); selectPlate('en'); translate(); poll(); setInterval(poll,2000);
 })();
 // AI: end

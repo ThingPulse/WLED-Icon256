@@ -86,3 +86,19 @@ continuous rain runs reaching 16 pixels. The standard state API reports the
 selected color (green for classic rain); native iOS device-card appearance still
 requires visual confirmation in the app. A second live viewer can take the
 WebSocket stream, so absence of preview frames is not evidence of short trails.
+
+## Firmware updater
+
+Run `node --test test/icon256-updater.test.js` and
+`python3 -m unittest discover -s test/icon256_release -v`. Optional browser checks:
+`node tools/icon256-updater-smoke.cjs` (set `PLAYWRIGHT_MODULE` and `CHROMIUM_PATH`
+for an existing Playwright installation).
+
+The browser fixture covers default stable filtering, prerelease opt-in, cancel
+without upload, corrupt download rejection, OTA lock/rejection errors, successful
+upload with validation enabled and version/MAC reconnection, throttling, missing
+feed, and German labels at mobile width. It does not replace a physical OTA test.
+For hardware validation, keep a configuration/preset backup, publish a verified
+prerelease, enable testing in Setup, confirm the update, and compare configuration,
+presets and installed version after reboot. Test the same UI in native app web
+frames separately; desktop Chromium alone does not validate iOS or Android hosts.
