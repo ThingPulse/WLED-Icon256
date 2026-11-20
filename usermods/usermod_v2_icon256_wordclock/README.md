@@ -1,5 +1,14 @@
 # Icon256 word clock languages
 
+The word-clock effect uses stable ID **250** in this fork. Upstream currently
+uses IDs 0–220; a compile-time guard stops the build if upstream grows into 250.
+This is a fork allocation, not an upstream reservation.
+
+For existing device presets saved with the old word-clock effect ID 218,
+select **Icon256 Word Clock** and save each affected preset again. Preset numbers
+do not change. Firmware does not automatically rewrite 218 because that ID now
+also identifies upstream's Color Clouds effect.
+
 Select **English (0)**, **Swiss German (1)**, or **German (2)** under
 **Settings → Usermods → Icon256 Word Clock → Language** and save.
 Each language requires its matching physical letter stencil.
