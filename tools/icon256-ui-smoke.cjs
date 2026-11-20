@@ -53,14 +53,15 @@ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>inne
 assert.deepEqual(errors,[]);
 assert.equal(overflow,false);
 assert(posts.some(p=>p.data.um?.['Icon256 Word Clock']?.['Hide seconds']));
-assert(posts.some(p=>p.data.Icon256?.clock?.direction===2));
+assert(posts.some(p=>p.data.Icon256?.clock?.direction===2 && p.data.seg.col[0].join(',')==='255,64,64'));
 assert(posts.some(p=>p.data.AudioReactive?.enabled));
 assert.equal(await page.locator('[data-plate=de] [data-cell="0"]').evaluate(el=>el.style.color),'rgb(255, 0, 0)');
 await page.locator('[data-mode="rain"]').click();
 await page.waitForTimeout(200);
-assert(posts.some(p=>p.data.seg?.fx===90 && p.data.seg?.o1===true));
+assert(posts.some(p=>p.data.seg?.fx===90 && p.data.seg?.o1===true && p.data.seg?.c1===0 && p.data.seg.col[1].join(',')==='0,180,0'));
 await page.locator('[data-mode="text"]').click();
 await page.waitForTimeout(200);
+assert(posts.some(p=>p.data.seg?.fx===122 && p.data.seg.col[1].join(',')==='0,0,0' && p.data.seg.c1===0));
 await page.locator('#message').fill('<b>Hello</b>');
 await page.waitForTimeout(300);
 assert(posts.some(p=>p.data.seg?.n==='<b>Hello</b>'));

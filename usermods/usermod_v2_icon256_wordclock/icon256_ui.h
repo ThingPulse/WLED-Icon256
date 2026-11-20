@@ -70,11 +70,22 @@ static void draw() {
   int mode = modeIndex();
   if (!active || mode < 0 || !strip.isMatrix || Segment::maxWidth != 16 || Segment::maxHeight != 16) return;
   const Appearance& a = appearances[mode];
+  const Segment& segment = strip.getMainSegment();
+  uint32_t primary = segment.colors[0];
+  uint8_t primaryLevel = max(R(primary), max(G(primary), B(primary)));
   for (unsigned y=0; y<16; y++) for (unsigned x=0; x<16; x++) {
     uint32_t c = strip.getPixelColorXY(x,y);
     uint8_t level = max(R(c), max(G(c), B(c)));
-    // Rain uses explicit white spawn pixels; retain white leading letters.
-    uint32_t target = mode == 3 && R(c) == G(c) && G(c) == B(c) ? 0xFFFFFF : tint(a,x,y);
+    // The upstream Matrix effect stores falling heads in a row-major bit map.
+    // Use it rather than white-pixel detection: primary color now represents the UI color.
+    unsigned pixel = y*16+x;
+    bool head = mode == 3 && segment.data && segment.dataSize() >= 32
+      && (segment.data[pixel >> 3] & (1U << (pixel & 7)));
+    // Clock/text brightness comes from the primary color. Avoid applying that
+    // brightness twice when tinting, including dark custom colors.
+    if ((mode == 0 || mode == 1 || head) && primaryLevel > 0)
+      level = min(255U, unsigned(level) * 255U / primaryLevel);
+    uint32_t target = head ? 0xFFFFFF : tint(a,x,y);
     strip.setPixelColor(y*16+x, color_blend(BLACK, target, level));
   }
 }

@@ -117,17 +117,24 @@
 		selectPlate(plateNames[info.icon256.plate] || 'en');
 	}
 	function segment() { return state.seg.find(s => s.id === state.mainseg) || state.seg[0]; }
+	// Report the chosen color in WLED's standard state, which native app cards read.
+	function modeColors() {
+		const a = appearance();
+		const starts = [0xffbc77,0x70e4bd,0x82e5ac,0xff4040,0xff4545];
+		const color = a.look === 2 ? 0x40e866 : a.look === 1 ? starts[a.gradient] : a.color;
+		return [[(color >>> 16)&255,(color >>> 8)&255,color&255],mode === 'rain' ? [0,180,0] : [0,0,0],[255,255,255]];
+	}
 	function changeAppearance(patch) {
 		if (!mode || !appearance()) return;
 		Object.assign(appearance(),patch); state.Icon256.active = true;
 		renderAppearance();
-		send({Icon256:{active:true,[mode]:appearance()},seg:{id:segment().id,col:[[255,255,255],[0,180,0],[255,255,255]],pal:0}});
+		send({Icon256:{active:true,[mode]:appearance()},seg:{id:segment().id,col:modeColors(),pal:0}});
 	}
 	all('[data-mode]').forEach(button => button.onclick = () => {
 		mode = button.dataset.mode;
-		const seg = {id:segment().id,fx:info.icon256.modes[mode],pal:0,col:[[255,255,255],[0,180,0],[255,255,255]]};
-		if (mode === 'text') Object.assign(seg,{n:$('message').value || 'Hello!',sx:153,ix:128,c1:0,c2:128,o1:false});
-		if (mode === 'rain') Object.assign(seg,{sx:102,ix:150,c1:128,o1:true});
+		const seg = {id:segment().id,fx:info.icon256.modes[mode],pal:0,col:modeColors()};
+		if (mode === 'text') Object.assign(seg,{n:$('message').value || 'Hello!',sx:153,ix:128,c1:0,c2:128,c3:16,o1:false,o2:false,o3:false});
+		if (mode === 'rain') Object.assign(seg,{sx:102,ix:150,c1:0,o1:true});
 		if (mode === 'eq') Object.assign(seg,{c1:255,c2:64,c3:0,o1:false});
 		const payload = {seg,Icon256:{active:true}};
 		if (mode === 'eq') payload.AudioReactive = {enabled:true};

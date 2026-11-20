@@ -13,7 +13,9 @@ the word-clock usermod. No filesystem upload or CDN is required.
   JSON state API and native effects. Entering GEQ enables AudioReactive.
 - Per-mode appearance supports solid colors, five gradients and horizontal,
   vertical or diagonal direction. GEQ defaults to red/yellow/green from top to
-  bottom; rain uses white spawn pixels and green trails.
+  bottom; rain uses white leading pixels and green trails. The overlay reads the native
+  Matrix head bitmap so its standard primary color can represent the chosen
+  appearance for native-app device cards.
 - Tinting happens in the usermod's output overlay, leaving effect simulation
   buffers intact. Advanced disables the overlay so upstream color controls work.
 - Appearance changes are coalesced and persisted after three seconds.
@@ -68,3 +70,19 @@ pixels, a diagonal rainbow gradient (23 distinct displayed colors), and the
 upstream advanced page. A setup-form seconds-visibility save succeeded while
 preserving audio settings, network configuration and the NTP server. The original
 clock display state and seconds visibility were restored after those checks.
+
+## Contrast and native-app color regression checks
+
+The UI smoke test verifies that text uses a black secondary/background color,
+zero text trail, and a representative standard primary color for gradients. Rain
+uses the slowest native fade setting (`c1=0`) and a green secondary trail color.
+Clock/text overlay intensity compensates for primary-color brightness so dark
+custom colors are not dimmed twice. Startup restores the representative clock
+color when the simplified appearance is active.
+
+On-device LED-frame checks verified red text with zero green/blue channels and
+a completely black top row outside the glyphs, green rain with white heads, and
+continuous rain runs reaching 16 pixels. The standard state API reports the
+selected color (green for classic rain); native iOS device-card appearance still
+requires visual confirmation in the app. A second live viewer can take the
+WebSocket stream, so absence of preview frames is not evidence of short trails.
