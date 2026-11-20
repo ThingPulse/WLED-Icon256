@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "version": "17.0.0-icon256.3",
+  "tag": "v17.0.0-icon256.3",
+  "repository": "ThingPulse/WLED-Icon256",
+  "channel": "prerelease",
+  "source_commit": "ff1beecd60d47f9ddad7ed292e17e8c53a3cfac2",
+  "built_at": "2026-11-20T13:50:17.898930+00:00",
+  "release_notes": "https://github.com/ThingPulse/WLED-Icon256/releases/tag/v17.0.0-icon256.3",
+  "firmware": {
+    "target": "icon256",
+    "chip": "esp32s3",
+    "flash_size": 4194304,
+    "release_name": "ESP32_S3_Icon256",
+    "format": "esp-app",
+    "offset": 65536,
+    "max_size": 1572864,
+    "size": 1317920,
+    "sha256": "3965b7defee765d349a85c7725cf6b3fe51951d59b4d096c21d0348198a99f13",
+    "filename": "WLED_17.0.0-icon256.3_ESP32_S3_Icon256.bin",
+    "url": "https://github.com/ThingPulse/WLED-Icon256/releases/download/v17.0.0-icon256.3/WLED_17.0.0-icon256.3_ESP32_S3_Icon256.bin"
+  }
+}
