@@ -167,6 +167,8 @@ public:
         strip.panel.push_back(p);
         strip.deserializeMap();
         strip.makeAutoSegments(true);
+        // Recreated segments start black; use visible clock text until a boot preset is applied.
+        strip.getMainSegment().colors[0] = WHITE;
 
         // Keep the same effect ID across builds and usermod registration order.
         const uint8_t wordClockMode = strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
