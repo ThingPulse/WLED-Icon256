@@ -24,7 +24,7 @@ private:
   
   void addTestMessage(JsonArray& data, const char* name, String value, const char* result) {
     JsonObject object = data.createNestedObject();
-    object["name"] = name;
+    object["name"] = String(name); // Own dynamic labels until the delayed report is serialized.
     object["value"] = value;
     object["result"] = result;
   }
