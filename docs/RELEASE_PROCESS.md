@@ -103,3 +103,16 @@ The tag in the example must match the built firmware's embedded version. To test
 another release version, use a separate checkout and run `prepare` there before
 building; do not change a developer checkout's package version merely to rename
 an existing binary.
+
+## OTA name mismatch in early development builds
+
+An upstream metadata helper copied a short release name but terminated the
+buffer at its capacity rather than at the copied length. Uninitialized bytes
+could be appended to the name during OTA validation. The one-line correction in
+`wled_metadata.cpp` is covered by `test/ota_metadata/test_strings.py`, which runs
+the actual helper with compiler-initialized poison bytes in automatic storage.
+
+Devices already running the affected checker may reject a correctly named
+image. Repair that checker once over USB, preserving the filesystem, then test
+OTA with validation enabled. Do not disable hardware validation as a general
+workaround. The first Icon256 draft includes the correction for future updates.

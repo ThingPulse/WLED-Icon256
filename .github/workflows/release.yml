@@ -65,7 +65,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Test release packaging
-        run: python -m unittest discover -s test/icon256_release -v
+        run: |
+          python -m unittest discover -s test/icon256_release -v
+          python -m unittest discover -s test/ota_metadata -v
 
       - name: Build Web UI
         run: npm run build
