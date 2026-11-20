@@ -32,5 +32,6 @@ jobs:
       - name: Mirror and verify only published release assets
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 source/tools/icon256_update_feed.py --repository "$RELEASE_REPOSITORY" --checkout feed
 # AI: end
