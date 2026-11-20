@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'  # Triggers on version tags like v0.16.0 or v0.16.0-beta
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   determine-release-type:
     runs-on: ubuntu-latest
@@ -78,7 +81,7 @@ jobs:
       - name: Prepare release artifacts
         run: |
           mkdir -p release-artifacts
-          cp build_output/release/*.bin release-artifacts/ || true
+          cp .pio/build/icon256/firmware.bin "release-artifacts/WLED_${{ needs.determine-release-type.outputs.version }}_ESP32_S3_Icon256.bin"
           ls -la release-artifacts/
 
       - name: Generate version-beta.json for staging (on beta branch)
@@ -108,18 +111,6 @@ jobs:
           }
           EOF
           cat release-artifacts/version.json
-
-      - name: Rename firmware with version
-        run: |
-          cd release-artifacts
-          for file in *.bin; do
-            if [ -f "$file" ]; then
-              newname=$(echo "$file" | sed "s/WLED_0\.16\.0-alpha/WLED_${{ needs.determine-release-type.outputs.version }}/g")
-              mv "$file" "$newname"
-              echo "Renamed $file to $newname"
-            fi
-          done
-          ls -la
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

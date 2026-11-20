@@ -1,9 +1,5 @@
 #include "wled.h"
 
-#define FX_MODE_ICON256_WORD_CLOCK 218
-
-extern Timezone* tz;
-
 byte frame[32];
 
 // Language selection: 0 = English (default), 1 = Swiss German, 2 = German
@@ -77,9 +73,9 @@ void showSeconds(byte s)
 /*
  * Word Clock effect
  */
-uint16_t mode_icon256_word_clock()
+void mode_icon256_word_clock()
 {
-    if (!strip.isMatrix) return 0; // Not for strips
+    if (!strip.isMatrix) return; // Not for strips
 
     // Get fresh time directly from toki - this ensures we use the latest NTP-synced time
     unsigned long tokiSec = toki.second();
@@ -90,8 +86,8 @@ uint16_t mode_icon256_word_clock()
     // Only display time if we have a valid time source (NTP synced or time set via API)
     // timeSource will be 0 (TOKI_TS_NONE) until NTP syncs or time is set
     if (timeSource > 0 && tokiSec > 60) {  // tokiSec > 60 ensures we're not just counting from boot
-        unsigned long tmc = tokiSec + utcOffsetSecs;
-        time_t currentTime = tz->toLocal(tmc);
+        updateLocalTime();
+        time_t currentTime = localTime;
 
         byte h = hour(currentTime);
         byte m = minute(currentTime);
@@ -129,7 +125,6 @@ uint16_t mode_icon256_word_clock()
         }
     }
     
-    return FRAMETIME;
 }
 
 static const char _data_FX_MODE_WORD_CLOCK[] PROGMEM = "Icon256 Word Clock@;;;2";
@@ -167,12 +162,12 @@ public:
         strip.deserializeMap();
         strip.makeAutoSegments(true);
 
-        // Add the effect to the list
-        strip.addEffect(FX_MODE_ICON256_WORD_CLOCK, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
+        // Allocate an available effect slot; upstream now uses the former ID 218.
+        const uint8_t wordClockMode = strip.addEffect(255, mode_icon256_word_clock, _data_FX_MODE_WORD_CLOCK);
         
         // Set word clock as default effect for the main segment
         // This will be the effect used on first boot or factory reset
-        strip.getMainSegment().setMode(FX_MODE_ICON256_WORD_CLOCK);
+        if (wordClockMode != 255) strip.getMainSegment().setMode(wordClockMode);
     }
 
     void loop() override

@@ -213,7 +213,7 @@ private:
     // Switch to Solid effect (FX_MODE_STATIC = 0)
     seg.setMode(FX_MODE_STATIC);
     bri = 128;
-    briT = 128;
+    briT16 = 128U << 8;
     stateUpdated(CALL_MODE_DIRECT_CHANGE);
     
     // Test RED
@@ -244,7 +244,7 @@ private:
     seg.colors[1] = oldCol1;
     seg.colors[2] = oldCol2;
     bri = oldBri;
-    briT = oldBri;
+    briT16 = uint16_t(oldBri) << 8;
     stateUpdated(CALL_MODE_DIRECT_CHANGE);
   }
   
