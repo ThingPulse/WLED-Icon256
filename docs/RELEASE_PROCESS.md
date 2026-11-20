@@ -1,256 +1,105 @@
-# WLED Icon256 Release Process
+# Icon256 release process
 
-This document describes the complete release process for WLED Icon256, including beta testing and production releases.
+## Version identity
 
-## Overview
+The Git tag is the release version source. `tools/icon256_release.py prepare`
+validates a `v`-prefixed semantic version and updates `package.json` and the root
+package-lock versions **inside the disposable CI checkout** before `npm ci` and
+compilation. Upstream metadata and web build scripts already read package.json,
+so no upstream source patch is required. Ordinary developer builds keep the
+repository's package version. The release tool rejects binaries whose embedded
+version differs from the tag; renaming an old binary is not sufficient.
 
-The release system uses a **two-tier approach**:
-1. **Beta Releases** - For Friends & Family (F&F) testing
-2. **Production Releases** - For public distribution
+Example prerelease: `v17.0.0-icon256.1`. Any prerelease suffix is recognized,
+including alpha/dev labels, rather than only beta and rc. Version strings must fit
+the firmware's 48-byte metadata field. Tags and repository names are validated,
+and workflow shell commands receive GitHub values through environment variables.
 
-This ensures thorough testing before public release, with minimal configuration required on devices.
+## Hardware compatibility
 
-## How It Works
+The tracked `platformio_icon256.ini` configures fresh CI builds without relying
+on a developer's ignored `platformio_override.ini`:
 
-### Branch-Based Update System
+| Target | Embedded release identity | OTA artifact |
+| --- | --- | --- |
+| icon256 | ESP32_S3_Icon256 | WLED_VERSION_ESP32_S3_Icon256.bin |
+| s3-rainbow | ESP32_S3_Rainbow | Not distributed by the Icon256 release workflow |
 
-Instead of using version-specific URLs, the system uses **stable branch-based URLs**:
+Icon256 retains its existing identity so currently installed devices remain
+compatible. Rainbow's old builds incorrectly used the Icon256 identity. Those
+legacy Rainbow devices need a separate migration (for example USB flashing);
+never bypass the compatibility check globally or offer them Icon256 updates.
+The standard WLED name check cannot distinguish two historical builds that both
+claimed the same identity. The new identifiers prevent that ambiguity going
+forward.
 
-- **Beta Branch**: `https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/beta/version-beta.json`
-  - Updated automatically when beta releases are created
-  - Used by F&F testers
+The release validator requires ESP32-S3, a 4 MB flash declaration, a complete
+hashed ESP application image, and exact Icon256 metadata. It checks the segment
+checksum and appended ESP SHA-256, then generates a SHA-256 over the complete
+file. The image must fit both 0x180000-byte application slots in
+`tools/WLED_ESP32_4MB_1MB_FS.csv`. This is an OTA application image at offset
+0x10000, not a factory image for flashing from address zero. Signed images are
+not accepted by this packaging version.
 
-- **Main Branch**: `https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/main/version.json`
-  - Updated automatically when production releases are created
-  - Used by production devices
+## Workflow and review boundary
 
-**Key Benefit**: Devices configure their update URL once at build time or via `-D` flag. They automatically receive new versions as the branches update.
+A pushed `v*` tag or manual workflow run for an existing tag builds and verifies
+assets, uploads them as an Actions artifact, verifies them again after download,
+and creates a draft release using the runner's GitHub CLI. Only the draft job has
+`contents: write`. Existing releases are not overwritten. There are no branch
+updates, force pushes, or automatic public releases.
 
-## Release Workflow
+The commit named by the tag must contain the new release script and workflow.
+Download the draft's assets while signed in. Verify the manifest, inspect release
+notes, and test actual OTA installation plus reboot/settings preservation on an
+Icon256 before publishing. A successful build or package check does not substitute
+for that OTA test. Draft URLs are not publicly downloadable update URLs.
 
-### 1. Creating a Beta Release
+## Manifest schema 1
 
-Beta releases are for F&F testing before public release.
+`manifest.json` contains:
 
-```bash
-# Create and push a beta tag
-git tag v0.16.1-beta
-git push origin v0.16.1-beta
+- `schema_version`, `version`, `tag`, `repository`, `channel` (stable/prerelease),
+  `source_commit`, `built_at` (UTC build time), and `release_notes` URL.
+- `firmware.target`, `chip`, `flash_size`, `release_name`, `format`, `offset`,
+  `max_size`, `size`, `sha256`, `filename`, and immutable release download `url`.
+
+`SHA256SUMS` accompanies the binary. Checksums detect corruption/mismatches; they
+are not independent signatures or a replacement for trusting the HTTPS release
+source. The future updater must check identity, channel, version, size, hash and
+WLED's own OTA compatibility rules before installation.
+
+## Update channels
+
+After a stable draft is explicitly published and designated the latest release,
+the stable discovery URL is:
+
+`https://github.com/ThingPulse/WLED-Icon256/releases/latest/download/manifest.json`
+
+For opted-in prerelease users, discover published releases using the GitHub
+releases API and select a compatible prerelease by semantic version. Do not use
+an array's first entry as a version comparison. Drafts and incomplete releases
+must never be offered. Each selected release's manifest and firmware URLs are
+tag-specific. Stable installations must ignore prereleases unless the user opts
+in. Handle unavailable endpoints, GitHub rate limiting and no published releases
+as normal no-update/error states, without blocking the display.
+
+The former `main/version.json` and `beta/version-beta.json` scheme is retired.
+`REMOTE_OTA_VERSION_URL` was unused and has been removed. The simplified UI's
+update notification/download/install feature remains a separate implementation.
+
+## Local validation
+
+```sh
+python3 -m unittest discover -s test/icon256_release -v
+python3 tools/icon256_release.py package \
+  --tag v17.0.0-devV5 --repository ThingPulse/WLED-Icon256 \
+  --commit "$(git rev-parse HEAD)" \
+  --firmware .pio/build/icon256/firmware.bin --out build_output/draft-release
+python3 tools/icon256_release.py verify build_output/draft-release/manifest.json
 ```
 
-The GitHub Actions workflow will:
-1. ✅ Build firmware with the version number
-2. ✅ Run tests to ensure quality
-3. ✅ Create a GitHub pre-release (marked as beta)
-4. ✅ Generate `version-beta.json` with download URL
-5. ✅ Update the `beta` branch with the new version file
-
-**Beta testers** will automatically see update notifications on their devices because they're configured to check `https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/beta/version-beta.json`.
-
-### 2. Creating a Production Release
-
-Once beta testing is complete, create a production release:
-
-```bash
-# Create and push a production tag (no suffix)
-git tag v0.16.1
-git push origin v0.16.1
-```
-
-The GitHub Actions workflow will:
-1. ✅ Build firmware with the version number
-2. ✅ Run tests to ensure quality
-3. ✅ Create a GitHub release (public)
-4. ✅ Generate `version.json` with download URL
-5. ✅ Update the `main` branch with the new version file
-
-**Production devices** will automatically see update notifications because they're configured to check `https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/main/version.json`.
-
-## Version Numbering
-
-Follow [Semantic Versioning](https://semver.org/):
-
-- **Beta**: `v0.16.1-beta`, `v0.16.2-beta`
-- **Production**: `v0.16.1`, `v0.16.2`
-
-**Rules**:
-- Beta releases should have `-beta` suffix
-- Production releases have NO suffix
-- Always increment version numbers
-- Never reuse version numbers
-
-## Configuration Examples
-
-### For Beta Testers (F&F)
-
-Build with beta environment:
-```ini
-[env:icon256_beta]
-extends = env:icon256
-build_flags = 
-  ${env:icon256.build_flags}
-  -D REMOTE_OTA_VERSION_URL=\"https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/beta/version-beta.json\"
-```
-
-Or flash with:
-```bash
-pio run -e icon256_beta --target upload
-```
-
-### For Production Users
-
-Build with production environment:
-```ini
-[env:icon256]
-build_flags = 
-  -D REMOTE_OTA_VERSION_URL=\"https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/main/version.json\"
-```
-
-Or flash with:
-```bash
-pio run -e icon256 --target upload
-```
-
-## Testing the Release Process
-
-### Manual Testing Checklist
-
-Before your first real release, test the workflow:
-
-1. **Create a test beta release**:
-   ```bash
-   git tag v0.16.0-beta-test
-   git push origin v0.16.0-beta-test
-   ```
-
-2. **Verify the workflow**:
-   - Check GitHub Actions completes successfully
-   - Verify release appears in GitHub Releases (as pre-release)
-   - Check that `beta` branch was created/updated
-   - Verify `version-beta.json` exists in beta branch
-
-3. **Test from a device**:
-   - Flash firmware with `icon256_beta` environment
-   - Wait 5 minutes for auto-check or trigger manual check via API
-   - Verify update notification appears in web UI
-   - Click "Update Now" and verify firmware updates
-
-4. **Create a test production release**:
-   ```bash
-   git tag v0.16.0-test
-   git push origin v0.16.0-test
-   ```
-
-5. **Verify production workflow**:
-   - Check GitHub Actions completes successfully
-   - Verify release appears in GitHub Releases (public)
-   - Check that `main` branch was updated
-   - Verify `version.json` exists in main branch
-
-6. **Clean up test releases**:
-   ```bash
-   # Delete test tags
-   git tag -d v0.16.0-beta-test v0.16.0-test
-   git push origin :refs/tags/v0.16.0-beta-test
-   git push origin :refs/tags/v0.16.0-test
-   
-   # Delete test releases from GitHub UI
-   ```
-
-## Troubleshooting
-
-### Workflow Fails
-
-**Problem**: GitHub Actions workflow fails
-
-**Solutions**:
-- Check workflow logs in GitHub Actions tab
-- Verify `npm test` passes locally
-- Verify `pio run -e icon256` completes successfully locally
-- Ensure all required files are committed
-
-### Version File Not Updated
-
-**Problem**: `beta` or `main` branch doesn't have version file
-
-**Solutions**:
-- Check workflow completed all jobs (including branch update jobs)
-- Verify GitHub Actions has write permissions to repository
-- Check for git conflicts in branch update step
-
-### Devices Don't See Updates
-
-**Problem**: Devices don't show update notifications
-
-**Solutions**:
-- Verify device firmware includes `USERMOD_REMOTE_OTA`
-- Check device has correct `REMOTE_OTA_VERSION_URL` compiled in
-- Manually trigger check via API: `http://device-ip/json/state` with `{"rmOTA_check": true}`
-- Verify version file URL is accessible (check in browser)
-- Check device logs for HTTP errors
-
-### Wrong Version in Firmware
-
-**Problem**: Firmware shows wrong version number in filename
-
-**Solutions**:
-- Update the `sed` pattern in workflow's "Rename firmware" step
-- Currently expects `WLED_0.16.0-alpha` - adjust to match your base version
-- Alternatively, update version in `wled00/wled.h` before release
-
-## Best Practices
-
-1. **Always test beta first**: Create beta releases for new features
-2. **Wait for feedback**: Give beta testers time to report issues
-3. **Don't skip versions**: Always increment version numbers
-4. **Document changes**: Include meaningful release notes
-5. **Keep branches clean**: Only workflow should update beta/main branches
-6. **Monitor workflow**: Check GitHub Actions after each release
-7. **Test on real hardware**: Always test OTA updates on actual devices
-
-## Version File Format
-
-Both `version.json` and `version-beta.json` use this format:
-
-```json
-{
-  "version": "0.16.1",
-  "url": "https://github.com/ThingPulse/WLED-Icon256/releases/download/v0.16.1/WLED_0.16.1_ESP32_S3_Icon256.bin",
-  "release_notes": "https://github.com/ThingPulse/WLED-Icon256/releases/tag/v0.16.1",
-  "published_at": "2024-01-15T10:30:00Z",
-  "is_beta": false
-}
-```
-
-The Remote OTA usermod compares `version` against the device's current version (from `versionString` in WLED).
-
-## Manual Rollback
-
-If a release has critical issues:
-
-1. **For beta**: Push previous version file to `beta` branch
-2. **For production**: Push previous version file to `main` branch
-
-```bash
-# Example: Rollback beta to v0.16.0
-git checkout beta
-# Edit version-beta.json to point to v0.16.0
-git add version-beta.json
-git commit -m "Rollback to v0.16.0 due to critical bug"
-git push origin beta
-```
-
-Devices will see the older version as "available" again if their current version is newer.
-
-## Security Notes
-
-- Version check URLs use HTTPS via GitHub's CDN
-- Firmware downloads use HTTPS via GitHub Releases
-- The Remote OTA usermod verifies ESP32's built-in signature checking
-- Never use HTTP URLs for production
-
-## Further Reading
-
-- [Remote OTA Usermod README](../usermods/usermod_v2_remote_ota/readme.md)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [WLED Documentation](https://kno.wled.ge/)
+The tag in the example must match the built firmware's embedded version. To test
+another release version, use a separate checkout and run `prepare` there before
+building; do not change a developer checkout's package version merely to rename
+an existing binary.

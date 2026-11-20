@@ -1,74 +1,34 @@
-# Quick Release Guide
+# Icon256 releases
 
-Fast reference for creating releases.
+Releases are **drafts first**. The workflow never publishes automatically and
+never rewrites `main` or `beta` to advertise an update.
 
-## Beta Release (F&F Testing)
+1. Commit and review the firmware and release-tool changes.
+2. Choose a new semantic version, for example `17.0.0-icon256.1` for a prerelease.
+3. Tag that exact commit and push the tag:
 
-```bash
-git tag v0.16.1-beta
-git push origin v0.16.1-beta
+   ```sh
+   git tag v17.0.0-icon256.1
+   git push origin v17.0.0-icon256.1
+   ```
+
+4. The Release Build workflow sets the disposable checkout's package version from
+   the tag, builds `icon256`, verifies the embedded binary version and hardware,
+   and creates a **draft GitHub release** with the OTA binary, `manifest.json`
+   and `SHA256SUMS`.
+5. Download the assets while signed in, verify them, and test the OTA update on an
+   Icon256 with backed-up settings. Review the release notes before publishing.
+
+```sh
+python3 tools/icon256_release.py verify /path/to/downloads/manifest.json
 ```
 
-✅ Automatically:
-- Builds firmware
-- Creates pre-release on GitHub
-- Updates `beta` branch with `version-beta.json`
-- Beta testers get update notification
+Any semantic-version prerelease suffix (`alpha`, `beta`, `rc`, `dev`, `icon256.1`,
+etc.) produces a prerelease, never a stable release. A tag without a suffix,
+for example `v17.0.0`, produces a stable draft. Do not reuse tags.
 
-## Production Release
+Publishing remains a separate human action. Drafts are not update notifications.
+The simplified UI does not yet check for or install remote firmware updates.
 
-```bash
-git tag v0.16.1
-git push origin v0.16.1
-```
-
-✅ Automatically:
-- Builds firmware  
-- Creates public release on GitHub
-- Updates `main` branch with `version.json`
-- Production users get update notification
-
-## Version Numbering
-
-- Beta: `v0.16.1-beta`
-- Production: `v0.16.1`
-- Always increment, never reuse
-
-## Device Configuration
-
-**Beta Testers**:
-```ini
--D REMOTE_OTA_VERSION_URL=\"https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/beta/version-beta.json\"
-```
-
-**Production Users**:
-```ini
--D REMOTE_OTA_VERSION_URL=\"https://raw.githubusercontent.com/ThingPulse/WLED-Icon256/main/version.json\"
-```
-
-## Workflow
-
-1. Develop & test locally
-2. Create beta release → F&F testing
-3. Fix issues if found
-4. Create production release → Public
-
-## Check Status
-
-- GitHub Actions: `https://github.com/ThingPulse/WLED-Icon256/actions`
-- Releases: `https://github.com/ThingPulse/WLED-Icon256/releases`
-
-## Troubleshooting
-
-**Workflow fails?**
-- Check `npm test` passes locally
-- Check `pio run -e icon256` succeeds locally
-
-**No update notification?**
-- Verify device has `USERMOD_REMOTE_OTA` enabled
-- Check version file URL in browser
-- Trigger manual check: `{"rmOTA_check": true}` via API
-
-## Full Documentation
-
-See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for complete details.
+See [the release process](docs/RELEASE_PROCESS.md) for manifest fields, hardware
+compatibility and update-channel URLs.
