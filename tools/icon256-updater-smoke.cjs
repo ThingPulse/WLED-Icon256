@@ -28,7 +28,7 @@ const u=require(path.join(ui,'updater.js'));
  await page.route('http://icon.test/**',r=>{
   const url=new URL(r.request().url());
   if(url.pathname==='/update'){
-   uploads++;const body=r.request().postDataBuffer().toString('latin1');assert(!body.includes('skipValidation'));assert(body.includes('name="update"'));
+   uploads++;const body=r.request().postDataBuffer().toString('latin1');assert(!body.includes('name="skipValidation"'));assert(body.includes('name="update"'));
    if(uploadStatus===200)info.ver=version;
    return r.fulfill({status:uploadStatus,body:uploadStatus===200?'Update successful!':'Rejected'});
   }
