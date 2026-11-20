@@ -102,3 +102,24 @@ For hardware validation, keep a configuration/preset backup, publish a verified
 prerelease, enable testing in Setup, confirm the update, and compare configuration,
 presets and installed version after reboot. Test the same UI in native app web
 frames separately; desktop Chromium alone does not validate iOS or Android hosts.
+
+## Smart Home setup
+
+Setup includes Home Assistant onboarding (device address and WLED integration
+link), direct Alexa enable/name controls, and separate bridge instructions for
+Siri/Apple Home and Google Assistant/Google Home. Alexa changes use the existing
+`id.inv` and `if.va.alexa` configuration keys and request a saved restart. Other
+Alexa settings, including preset counts and on/off macros, are preserved. Names
+must fit the firmware's 32-byte UTF-8 payload; unsupported Alexa builds display
+an unavailable notice. No WLED core changes or cloud credentials are required.
+
+`tools/icon256-ui-smoke.cjs` covers unchanged saves without reboot, enable/disable,
+name validation, preserving preset settings, translations and mobile width.
+`tools/icon256-updater-smoke.cjs` also covers setup when Alexa configuration is
+absent. Real Home Assistant discovery and commands, supported Echo discovery,
+and voice commands through each bridge still require ecosystem acceptance tests.
+
+The UI promises standard power/brightness controls. Icon256's separate appearance
+state is not yet synchronized with standard WLED color commands; colors,
+gradients and text need explicit presets/custom automation. Do not describe the
+microphone as a voice-assistant input: it is used for audio-reactive effects.

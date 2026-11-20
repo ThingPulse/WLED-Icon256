@@ -185,6 +185,12 @@
 		config = await api('/json/cfg');
 		const clock = config.um['Icon256 Word Clock'];
 		$('device-name').value = config.id.name;
+		const alexaAvailable = typeof config.if?.va?.alexa === 'boolean';
+		$('alexa-settings').hidden = !alexaAvailable; $('alexa-unavailable').hidden = alexaAvailable;
+		$('alexa-enabled').checked = Boolean(config.if?.va?.alexa);
+		$('alexa-name').value = config.id.inv || 'Icon256';
+		$('alexa-name').disabled = !alexaAvailable || !$('alexa-enabled').checked;
+		$('smart-home-address').value = info.ip || location.hostname;
 		$('plate').value = plateNames[clock.Language] || 'en'; $('plate').onchange();
 		$('hide-seconds').checked = Boolean(clock['Hide seconds']);
 		$('regional-quarters').checked = Boolean(clock['German regional quarters']);
@@ -209,6 +215,7 @@
 		} catch(error) { say('wifi-status',error.message); }
 		finally { $('scan').disabled = false; }
 	};
+	$('alexa-enabled').onchange = () => $('alexa-name').disabled = !$('alexa-enabled').checked;
 	$('setup-form').oninput = () => {configDirty = true; say('save-status','');};
 	$('setup-form').onsubmit = async event => {
 		event.preventDefault(); if (!config) return;
@@ -221,6 +228,19 @@
 				'German time of day':$('time-of-day').checked,'Appearance':state.Icon256});
 			const payload = {id:{name:$('device-name').value.trim()},if:{ntp:{en:true,tz:Number($('timezone').value)}},um,sv:true,
 				nw:{linked_remote:current.nw.linked_remote || []}};
+			let alexaChanged = false;
+			if (typeof current.if?.va?.alexa === 'boolean') {
+				const enabled = $('alexa-enabled').checked;
+				const name = enabled ? $('alexa-name').value.trim() : current.id.inv;
+				if (enabled && (!name || new TextEncoder().encode(name).length > 32))
+					throw new Error('Enter a short Alexa device name.');
+				alexaChanged = enabled !== current.if.va.alexa || (enabled && name !== current.id.inv);
+				if (alexaChanged) {
+					payload.id.inv = name;
+					payload.if.va = {alexa:enabled};
+					payload.rb = true;
+				}
+			}
 			const ssid = $('network').value === 'manual' ? $('ssid').value : $('network').value;
 			const networkChanged = ssid !== current.nw.ins?.[0]?.ssid || Boolean($('password').value);
 			if (networkChanged) {
@@ -232,7 +252,7 @@
 			}
 			await api('/json/cfg',payload);
 			$('password').value = ''; configDirty = false;
-			selectPlate($('plate').value); say('save-status',networkChanged ? 'Network saved. Reconnecting…':'Settings saved.');
+			selectPlate($('plate').value); say('save-status',networkChanged ? 'Network saved. Reconnecting…':alexaChanged ? 'Alexa settings saved. Restarting…':'Settings saved.');
 			await poll();
 		} catch(error) { say('save-status',error.message || 'Settings could not be saved.'); }
 		finally { button.disabled = false; }
