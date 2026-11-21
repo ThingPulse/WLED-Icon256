@@ -99,6 +99,11 @@
 		$('custom-color').value = color; $('direction').value = directions[a.direction];
 		$('classic-rain').hidden = mode !== 'rain';
 		$('colors').hidden = a.look !== 0; $('gradients').hidden = a.look !== 1; $('gradient-direction').hidden = a.look !== 1;
+		$('gradient-animation').hidden = a.look !== 1;
+		$('animate-gradient').checked = a.animate === true;
+		$('gradient-speed-controls').hidden = !a.animate;
+		$('gradient-speed').value = a.animationSpeed || 3;
+		say('gradient-speed-value', [120,60,30,15,6][(a.animationSpeed || 3)-1]+' seconds per cycle');
 		say('appearance-note', mode === 'rain' ? 'White leading letters, with fading trails. Each mode remembers its own appearance.' : 'Each mode remembers its own appearance.');
 	}
 	function render() {
@@ -150,6 +155,12 @@
 	all('[data-color]').forEach(b => b.onclick = () => changeAppearance({color:parseInt(b.dataset.color.slice(1),16)}));
 	all('[data-gradient]').forEach(b => b.onclick = () => changeAppearance({gradient:gradients.indexOf(b.dataset.gradient)}));
 	$('custom-color').oninput = () => debounce('color', () => changeAppearance({color:parseInt($('custom-color').value.slice(1),16)}));
+	$('animate-gradient').onchange = () => changeAppearance({animate:$('animate-gradient').checked});
+	$('gradient-speed').oninput = () => {
+		const speed = Number($('gradient-speed').value), selectedMode = mode;
+		say('gradient-speed-value', [120,60,30,15,6][speed-1]+' seconds per cycle');
+		debounce('gradient-speed', () => { if (mode === selectedMode) changeAppearance({animationSpeed:speed}); });
+	};
 	$('direction').onchange = () => changeAppearance({direction:directions.indexOf($('direction').value)});
 	$('message').oninput = () => debounce('text', () => send({seg:{id:segment().id,n:$('message').value || ' '}}));
 	['speed','rain-speed'].forEach(id => $(id).oninput = () => {

@@ -181,5 +181,13 @@
   "Siri and Google Home require a separate Home Assistant installation; they do not pair directly with Icon256. Home Assistant Cloud is an optional paid service for Alexa and Google Assistant. Voice commands are received by your phone or smart speaker.": "Siri und Google Home benötigen eine separate Home-Assistant-Installation; sie lassen sich nicht direkt mit Icon256 koppeln. Home Assistant Cloud ist ein optionaler kostenpflichtiger Dienst für Alexa und Google Assistant. Sprachbefehle empfängt dein Smartphone oder Smart Speaker.",
   "Power and brightness use standard WLED controls. Icon256 colors, gradients and text need matching presets or custom automations.": "Ein/Aus und Helligkeit nutzen die normale WLED-Steuerung. Icon256-Farben, Farbverläufe und Text benötigen passende Presets oder eigene Automationen.",
   "Alexa settings saved. Restarting…": "Alexa-Einstellungen gespeichert. Neustart…",
-  "Enter a short Alexa device name.": "Gib einen kurzen Alexa-Gerätenamen ein."
+  "Enter a short Alexa device name.": "Gib einen kurzen Alexa-Gerätenamen ein.",
+  "Animate gradient": "Farbverlauf animieren",
+  "Move the colors across the letters in the selected direction.": "Die Farben bewegen sich in der gewählten Richtung über die Buchstaben.",
+  "Animation speed": "Animationsgeschwindigkeit",
+  "120 seconds per cycle": "120 Sekunden pro Durchlauf",
+  "60 seconds per cycle": "60 Sekunden pro Durchlauf",
+  "30 seconds per cycle": "30 Sekunden pro Durchlauf",
+  "15 seconds per cycle": "15 Sekunden pro Durchlauf",
+  "6 seconds per cycle": "6 Sekunden pro Durchlauf"
 }

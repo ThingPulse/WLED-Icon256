@@ -9,6 +9,11 @@ struct Appearance {
   uint8_t gradient = 0;
   uint8_t direction = 0;
   uint32_t color = 0xFFFFFF;
+  bool animate = false;
+  uint8_t animationSpeed = 3;
+  uint32_t phase = 0; // Runtime only; a complete cycle is 65536 units.
+  uint32_t phaseRemainder = 0;
+
 };
 static Appearance appearances[4] = {{}, {}, {1, 4, 1, 0x40E866}, {2, 3, 1, 0x40E866}};
 static bool active = false;
@@ -28,9 +33,20 @@ static void writeAppearance(JsonObject obj, const Appearance& a) {
   obj["gradient"] = a.gradient;
   obj["direction"] = a.direction;
   obj["color"] = a.color;
+  obj["animate"] = a.animate;
+  obj["animationSpeed"] = a.animationSpeed;
 }
 
 static void readAppearance(JsonObject obj, Appearance& a) {
+  if (obj["animate"].is<bool>() && obj["animate"].as<bool>() != a.animate) {
+    a.animate = obj["animate"].as<bool>();
+    a.phase = a.phaseRemainder = 0;
+  }
+  if (obj["animationSpeed"].is<int>()) {
+    uint8_t speed = constrain(obj["animationSpeed"].as<int>(), 1, 5);
+    if (speed != a.animationSpeed) a.phaseRemainder = 0;
+    a.animationSpeed = speed;
+  }
   if (obj["look"].is<int>()) a.look = constrain(obj["look"].as<int>(), 0, 2);
   if (obj["gradient"].is<int>()) a.gradient = constrain(obj["gradient"].as<int>(), 0, 4);
   if (obj["direction"].is<int>()) a.direction = constrain(obj["direction"].as<int>(), 0, 2);
@@ -61,15 +77,33 @@ static uint32_t tint(const Appearance& a, unsigned x, unsigned y) {
   unsigned denominator = a.direction == 2 ? 30 : 15;
   unsigned count = a.gradient == 3 ? 6 : 3;
   unsigned pos = coordinate * (count-1) * 255 / denominator;
+  if (a.animate) {
+    // Mirror the palette to close the loop without a color jump at the wrap.
+    uint32_t position = coordinate * 32768U / denominator;
+    uint32_t wrapped = (position + 65536U - a.phase) % 65536U;
+    uint32_t fraction = wrapped <= 32768U ? wrapped : 65536U - wrapped;
+    pos = fraction * (count-1) * 255U / 32768U;
+  }
   unsigned index = min(pos / 255, count-2);
   return color_blend(stops[a.gradient][index], stops[a.gradient][index+1], pos-index*255);
 }
 
 // Tint the composed frame, not the effect's working buffer (rain trails use that buffer).
 static void draw() {
+  static uint32_t lastFrame = millis();
+  uint32_t now = millis();
+  uint32_t elapsed = min(uint32_t(250), uint32_t(now - lastFrame));
+  lastFrame = now;
   int mode = modeIndex();
   if (!active || mode < 0 || !strip.isMatrix || Segment::maxWidth != 16 || Segment::maxHeight != 16) return;
-  const Appearance& a = appearances[mode];
+  Appearance& a = appearances[mode];
+  if (a.animate && a.look == 1 && bri > 0) {
+    static const uint32_t periods[] = {120000, 60000, 30000, 15000, 6000};
+    uint32_t period = periods[a.animationSpeed-1];
+    uint32_t progress = elapsed * 65536U + a.phaseRemainder;
+    a.phase = (a.phase + progress / period) % 65536U;
+    a.phaseRemainder = progress % period;
+  }
   const Segment& segment = strip.getMainSegment();
   uint32_t primary = segment.colors[0];
   uint8_t primaryLevel = max(R(primary), max(G(primary), B(primary)));

@@ -43,6 +43,18 @@ await page.waitForFunction(()=>document.getElementById('connection-status').text
 await page.locator('[data-look="gradient"]').click();
 await page.locator('[data-gradient="rainbow"]').click();
 await page.locator('#direction').selectOption('diagonal');
+assert.equal(await page.locator('#animate-gradient').isChecked(),false);
+await page.locator('#animate-gradient').check();
+await page.locator('#gradient-speed').fill('5');
+await page.waitForTimeout(500);
+assert(posts.some(p=>p.data.Icon256?.clock?.animate===true && p.data.Icon256.clock.animationSpeed===5));
+await page.locator('[data-mode="eq"]').click();
+await page.waitForFunction(()=>!document.getElementById('animate-gradient').checked);
+assert.equal(await page.locator('#animate-gradient').isChecked(),false);
+await page.locator('[data-mode="clock"]').click();
+await page.waitForFunction(()=>document.getElementById('animate-gradient').checked);
+assert.equal(await page.locator('#animate-gradient').isChecked(),true);
+assert.equal(await page.locator('#gradient-speed').inputValue(),'5');
 await page.locator('[data-mode="eq"]').click();
 await page.waitForTimeout(250);
 await page.locator('[data-page="setup"]').click();

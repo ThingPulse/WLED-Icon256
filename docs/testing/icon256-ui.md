@@ -1,6 +1,6 @@
 # Icon256 simplified UI: first implementation
 
-The approved design reference remains `docs/ui-mockup/index.html`, unchanged.
+The approved design reference is `docs/ui-mockup/index.html`.
 Firmware UI sources live in `usermods/usermod_v2_icon256_wordclock/ui/`.
 `build_ui.py` embeds those assets as a gzip PROGMEM array when PlatformIO builds
 the word-clock usermod. No filesystem upload or CDN is required.
@@ -123,3 +123,26 @@ The UI promises standard power/brightness controls. Icon256's separate appearanc
 state is not yet synchronized with standard WLED color commands; colors,
 gradients and text need explicit presets/custom automation. Do not describe the
 microphone as a voice-assistant input: it is used for audio-reactive effects.
+
+## Gradient animation
+
+The approved mock animation is implemented in the usermod overlay. Each mode's
+appearance accepts `animate` (boolean, default false) and `animationSpeed`
+(integer 1–5, default 3) through `Icon256` JSON state. Speeds correspond to
+120, 60, 30, 15 and 6 seconds per complete cycle. Existing configurations remain
+static. Values are validated and saved through the existing appearance config
+path; runtime phase is not written to flash.
+
+The palette moves along the selected direction and is mirrored for a seamless
+wrap. Solid colors and classic rain are unaffected; rain heads remain white.
+Animation pauses when powered off and each mode keeps its runtime phase when
+switching modes. Disabling animation restores the original static gradient.
+The browser preview uses device LED frames, so no separate preview simulation
+or open browser is needed for animation.
+
+Validation: npm tests, UI smoke tests (including animation payloads and per-mode
+controls), German word-clock regression, and Icon256/esp32dev builds passed.
+A native C++ check exercised the actual tint and phase code for palette endpoints,
+all directions, exact full-cycle timing at all speeds, and unaffected solid/classic
+colors. Physical display, reboot persistence, and mobile-app testing remain to
+be performed after flashing this build.
